@@ -360,6 +360,10 @@ contract Timelock is ITimelock {
         IReferralStorage(_referralStorage).govSetCodeOwner(_code, _newAccount);
     }
 
+    function setOrderBook(address _vault, address _orderbook) external onlyAdmin {
+        IVault(_vault).setOrderBook(_orderbook);
+    }
+
     function setVaultUtils(address _vault, IVaultUtils _vaultUtils) external onlyAdmin {
         IVault(_vault).setVaultUtils(_vaultUtils);
     }

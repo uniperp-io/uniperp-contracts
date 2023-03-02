@@ -92,6 +92,9 @@ contract Oracle is ReentrancyGuard, Governable {
     // these prices will be cleared in clearAllPrices
     mapping(address => Price.Props) public customPrices;
 
+    mapping (address => uint256) public minOracleBlockNumbers;
+    mapping (address => uint256) public maxOracleBlockNumbers;
+
     error EmptyTokens();
     error InvalidBlockNumber(uint256 blockNumber);
     error InvalidMinMaxBlockNumber(uint256 minOracleBlockNumber, uint256 maxOracleBlockNumber);
@@ -299,7 +302,7 @@ contract Oracle is ReentrancyGuard, Governable {
     }
 
     // @dev clear all prices
-    function clearAllPrices() external onlyGov {
+    function clearAllPrices() external onlyPositionManager {
         uint256 length = tokensWithPrices.length();
         for (uint256 i = 0; i < length; i++) {
             address token = tokensWithPrices.at(0);
@@ -538,7 +541,9 @@ contract Oracle is ReentrancyGuard, Governable {
                     medianMaxPrice
                 );
             }
-
+            
+            minOracleBlockNumbers[cache.info.token] = cache.info.minOracleBlockNumber;
+            maxOracleBlockNumbers[cache.info.token] = cache.info.maxOracleBlockNumber;
             tokensWithPrices.add(cache.info.token);
         }
     }

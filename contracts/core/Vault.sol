@@ -251,10 +251,10 @@ contract Vault is ReentrancyGuard, IVault {
         stableFundingRateFactor = _stableFundingRateFactor;
     }
 
-    function setOrderBook(address _account) external override {
+    function setOrderBook(address _orderbook) external override {
         _onlyGov();
-        orderBook = _account;
-        emit SetOrderBookEvent(_account);
+        orderBook = _orderbook;
+        emit SetOrderBookEvent(_orderbook);
     }
 
     function setVaultUtils(IVaultUtils _vaultUtils) external override {
