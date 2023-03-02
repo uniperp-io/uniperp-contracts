@@ -20,40 +20,6 @@ async function main() {
   console.log("\nadmin address: ", admin)
   console.log("\n")
 
-  const signers = [
-      admin,
-      "0xA7DE6233c4A4F8084478cC307F5ced4Bbea21AF2", // account2
-      "0xC842DD3ea22f6b4FBC7f3bcce37495a76a0ed570", // account3
-      "0xaFd91EBe3ceDbf2764cc2f5430e9F9E795283C94", // account4
-      "0x57E06356Fd7FD5f1a58B920d8843D778cAD992C9" // account5
-    ]
-
-  const positionKeeper = { address: "0xA7DE6233c4A4F8084478cC307F5ced4Bbea21AF2" }
-  const priceFeedKeeper = { address: "0xA7DE6233c4A4F8084478cC307F5ced4Bbea21AF2" }
-
-  //TODO
-  const updater1 = { address: admin }
-  const updater2 = { address: "0xA7DE6233c4A4F8084478cC307F5ced4Bbea21AF2" }
-  const keeper1 = { address: "0xC842DD3ea22f6b4FBC7f3bcce37495a76a0ed570" }
-  const keeper2 = { address: "0xaFd91EBe3ceDbf2764cc2f5430e9F9E795283C94" }
-  const fastPriceFeedUpdaters = [updater1.address, updater2.address, keeper1.address, keeper2.address]
-
-  //for PriceFeedTimelock
-  const PriceFeedTimelockContractHandlers = [admin, ]
-  const priceFeedTimelockKeepers = [admin, ]
-
-  //Shorts Tracker Keeper
-  const shortsTrackerTimelockHandlers = [admin, ]
-
-  //for Timelock
-  const timelockHandlers = [admin, ]
-  const timelockKeepers = [admin, ]
-
-  const TokenManagerMinAuthorizations = 4
-  const fastPriceFeedMinAuthorizations = 1
-
-  const { nativeToken } = tokens
-
   //const usdt = await deployContract("USDT", [])
   const usdtAddr = { address: "0x0d3D8a77A67dCacc41939700eabbf361656Be916" }
   const usdt = await contractAt("USDT", usdtAddr.address)
