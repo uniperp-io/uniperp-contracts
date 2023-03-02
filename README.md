@@ -1,5 +1,5 @@
 # Uniperp Contracts
-Contracts for Uniperp.
+Contracts for Uniperp.io
 
 Docs at https://uniperp.gitbook.io/v1/contracts.
 
