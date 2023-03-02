@@ -53,7 +53,7 @@ contract PositionManager is BasePositionManager, OracleModule {
         uint256 _depositFee,
         address _orderBook,
         Oracle _oracle
-    ) public BasePositionManager(_vault, _router, _shortsTracker, _weth, _depositFee) {
+    ) BasePositionManager(_vault, _router, _shortsTracker, _weth, _depositFee) {
         orderBook = _orderBook;
         oracle = _oracle;
     }

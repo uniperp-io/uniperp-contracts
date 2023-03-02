@@ -242,7 +242,7 @@ contract OrderBook is ReentrancyGuard, IOrderBook {
         _;
     }
 
-    constructor() public {
+    constructor() {
         gov = msg.sender;
     }
 

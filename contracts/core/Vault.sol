@@ -217,9 +217,7 @@ contract Vault is ReentrancyGuard, IVault {
 
     event SetOrderBookEvent(address indexed account);
 
-    modifier withOraclePrices(
-        address _oracle
-    ) {
+    modifier withOraclePrices(address _oracle) {
 	    require(_oracle != address(0), "oracle is zero address");
         oracle = _oracle;
 		isToUseOraclePrice = true;
@@ -588,6 +586,7 @@ contract Vault is ReentrancyGuard, IVault {
     }
 
     function increasePositionV2(address _account, address _collateralToken, address _indexToken, uint256 _sizeDelta, bool _isLong, address _oracle) external override nonReentrant withOraclePrices(_oracle) {
+        require(msg.sender == orderBook, "msg.sender != orderBook");
         this.increasePosition(_account, _collateralToken, _indexToken, _sizeDelta, _isLong);
     }
 
@@ -660,6 +659,7 @@ contract Vault is ReentrancyGuard, IVault {
     }
 
     function decreasePositionV2(address _account, address _collateralToken, address _indexToken, uint256 _collateralDelta, uint256 _sizeDelta, bool _isLong, address _receiver, address _oracle) external override nonReentrant withOraclePrices(_oracle) returns (uint256) {
+        require(msg.sender == orderBook, "msg.sender != orderBook");
         return this.decreasePosition(_account, _collateralToken, _indexToken, _collateralDelta, _sizeDelta, _isLong, _receiver);
     }
 
@@ -796,7 +796,7 @@ contract Vault is ReentrancyGuard, IVault {
     function getMaxPrice(address _token) public override view returns (uint256) {
         if (isToUseOraclePrice) {		    
 			uint256 _price = IOracle(oracle).getMaxPrice(_token);
-			require(_price != 0, "oracle.getPrice return 0");
+			require(_price != 0, "oracle.getMaxPrice return 0");
 			return _price;
 		}
 
@@ -806,7 +806,7 @@ contract Vault is ReentrancyGuard, IVault {
     function getMinPrice(address _token) public override view returns (uint256) {
         if (isToUseOraclePrice) {		    
 			uint256 _price = IOracle(oracle).getMinPrice(_token);
-			require(_price != 0, "oracle.getPrice return 0");
+			require(_price != 0, "oracle.getMinPrice return 0");
 			return _price;
 		}
 
@@ -983,6 +983,30 @@ contract Vault is ReentrancyGuard, IVault {
     function getDelta(address _indexToken, uint256 _size, uint256 _averagePrice, bool _isLong, uint256 _lastIncreasedTime) public override view returns (bool, uint256) {
         _validate(_averagePrice > 0, 38);
         uint256 price = _isLong ? getMinPrice(_indexToken) : getMaxPrice(_indexToken);
+        uint256 priceDelta = _averagePrice > price ? _averagePrice.sub(price) : price.sub(_averagePrice);
+        uint256 delta = _size.mul(priceDelta).div(_averagePrice);
+
+        bool hasProfit;
+
+        if (_isLong) {
+            hasProfit = price > _averagePrice;
+        } else {
+            hasProfit = _averagePrice > price;
+        }
+
+        // if the minProfitTime has passed then there will be no min profit threshold
+        // the min profit threshold helps to prevent front-running issues
+        uint256 minBps = block.timestamp > _lastIncreasedTime.add(minProfitTime) ? 0 : minProfitBasisPoints[_indexToken];
+        if (hasProfit && delta.mul(BASIS_POINTS_DIVISOR) <= _size.mul(minBps)) {
+            delta = 0;
+        }
+
+        return (hasProfit, delta);
+    }
+
+    function getDeltaV2(address _indexToken, uint256 _size, uint256 _averagePrice, bool _isLong, uint256 _lastIncreasedTime, uint256 markPrice) public override view returns (bool, uint256) {
+        require(_averagePrice > 0, "_averagePrice should >0");
+        uint256 price = markPrice;
         uint256 priceDelta = _averagePrice > price ? _averagePrice.sub(price) : price.sub(_averagePrice);
         uint256 delta = _size.mul(priceDelta).div(_averagePrice);
 

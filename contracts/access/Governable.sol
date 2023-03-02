@@ -5,7 +5,7 @@ pragma solidity ^0.8.0;
 contract Governable {
     address public gov;
 
-    constructor() public {
+    constructor() {
         gov = msg.sender;
     }
 
