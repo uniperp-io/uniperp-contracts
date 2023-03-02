@@ -752,8 +752,9 @@ contract OrderBook is ReentrancyGuard, IOrderBook {
             path[0] = order.purchaseToken;
             path[1] = order.collateralToken;
 
-            //TODO use _swap or _swapV2 ? may be _swap, as user only care about triggerPrice of the indexToken
-            uint256 amountOut = _swap(path, 0, address(this));
+            //TODO use _swap or _swapV2 ? may be _swap, as user only care about triggerPrice of the indexToken?
+            //just use _swapV2, so that price comes from the same block's observation. 2023/3/2
+            uint256 amountOut = _swapV2(path, 0, address(this), _oracle);
             IERC20(order.collateralToken).safeTransfer(vault, amountOut);
         }
 
