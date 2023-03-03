@@ -9,7 +9,7 @@ const tokens = require('./tokens')[network]
 const {
   ARBITRUM_TESTNET_URL,
   ARBITRUM_TESTNET_DEPLOY_KEY
-} = require("./env.json")
+} = require("./hardhat_env.json")
 
 async function main() {
   let rpcProvider = new ethers.providers.JsonRpcProvider(ARBITRUM_TESTNET_URL)
@@ -20,9 +20,10 @@ async function main() {
   console.log("\nadmin address: ", admin)
   console.log("\n")
 
-  //const usdt = await deployContract("USDT", [])
-  const usdtAddr = { address: "0x0d3D8a77A67dCacc41939700eabbf361656Be916" }
-  const usdt = await contractAt("USDT", usdtAddr.address)
+  const usdt = await deployContract("USDT", [])
+  //const usdtAddr = { address: "0x0d3D8a77A67dCacc41939700eabbf361656Be916" }
+  //const usdt = await contractAt("USDT", usdtAddr.address)
+  /*
   try {
     await run(`verify:verify`, {
       address: usdt.address,
@@ -32,7 +33,7 @@ async function main() {
     if (err.message.includes("Reason: Already Verified")) {
       console.log("Contract is already verified!");
     }
-  }
+  }*/
 
   await sendTxn(usdt.mint("0xd025C8DD06a87555063C9FbF1D8581Dd0F38b25E", 1000000000000), "usdt.mint")
   await sendTxn(usdt.mint("0xA7DE6233c4A4F8084478cC307F5ced4Bbea21AF2", 1000000000000), "usdt.mint")
