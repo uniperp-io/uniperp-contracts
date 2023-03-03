@@ -789,7 +789,7 @@ contract OrderBook is ReentrancyGuard, IOrderBook {
         emitExecuteIncreaseOrder(order, _orderIndex, currentPrice);
     }
 
-    function emitExecuteIncreaseOrder(IncreaseOrder memory order, uint256 _orderIndex, uint256 currentPrice) private nonReentrant {
+    function emitExecuteIncreaseOrder(IncreaseOrder memory order, uint256 _orderIndex, uint256 currentPrice) private {
         emit ExecuteIncreaseOrder(
             order.account,
             _orderIndex,
@@ -919,7 +919,7 @@ contract OrderBook is ReentrancyGuard, IOrderBook {
         emitExecuteDecreaseOrder(order, _orderIndex, currentPrice);
     }
 
-    function emitExecuteDecreaseOrder(DecreaseOrder memory order, uint256 _orderIndex, uint256 currentPrice) private nonReentrant {
+    function emitExecuteDecreaseOrder(DecreaseOrder memory order, uint256 _orderIndex, uint256 currentPrice) private {
         emit ExecuteDecreaseOrder(
             order.account,
             _orderIndex,

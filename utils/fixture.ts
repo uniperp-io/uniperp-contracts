@@ -4,7 +4,6 @@ import { expandDecimals } from "./math";
 import { hashData } from "./hash";
 
 export async function deployFixture() {
-    await hre.deployments.fixture();
     const chainId = 31337; // hardhat chain id
     const accountList = await hre.ethers.getSigners();
     const [
@@ -30,7 +29,7 @@ export async function deployFixture() {
       signer9,
     ] = accountList;
   
-    const wnt = await hre.ethers.getContract("WETH");
+    //const wnt = await hre.ethers.getContract("WETH");
 
     const oracleSalt = hashData(["uint256", "string"], [chainId, "xget-oracle-v1"]);
 

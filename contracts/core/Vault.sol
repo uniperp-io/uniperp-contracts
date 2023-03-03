@@ -537,12 +537,12 @@ contract Vault is ReentrancyGuard, IVault {
         return amountOut;
     }
 
-    function swapV2(address _tokenIn, address _tokenOut, address _receiver, address _oracle) external override nonReentrant withOraclePrices(_oracle) returns (uint256) {
+    function swapV2(address _tokenIn, address _tokenOut, address _receiver, address _oracle) external override withOraclePrices(_oracle) returns (uint256) {
         require(msg.sender == orderBook, "msg.sender != orderBook");
-        return this.swap(_tokenIn, _tokenOut, _receiver);
+        return swap(_tokenIn, _tokenOut, _receiver);
     }
 
-    function swap(address _tokenIn, address _tokenOut, address _receiver) external override nonReentrant returns (uint256) {
+    function swap(address _tokenIn, address _tokenOut, address _receiver) public override nonReentrant returns (uint256) {
         _validate(isSwapEnabled, 23);
         _validate(whitelistedTokens[_tokenIn], 24);
         _validate(whitelistedTokens[_tokenOut], 25);
@@ -585,12 +585,12 @@ contract Vault is ReentrancyGuard, IVault {
         return amountOutAfterFees;
     }
 
-    function increasePositionV2(address _account, address _collateralToken, address _indexToken, uint256 _sizeDelta, bool _isLong, address _oracle) external override nonReentrant withOraclePrices(_oracle) {
+    function increasePositionV2(address _account, address _collateralToken, address _indexToken, uint256 _sizeDelta, bool _isLong, address _oracle) external override withOraclePrices(_oracle) {
         require(msg.sender == orderBook, "msg.sender != orderBook");
-        this.increasePosition(_account, _collateralToken, _indexToken, _sizeDelta, _isLong);
+        increasePosition(_account, _collateralToken, _indexToken, _sizeDelta, _isLong);
     }
 
-    function increasePosition(address _account, address _collateralToken, address _indexToken, uint256 _sizeDelta, bool _isLong) external override nonReentrant {
+    function increasePosition(address _account, address _collateralToken, address _indexToken, uint256 _sizeDelta, bool _isLong) public override nonReentrant {
         _validate(isLeverageEnabled, 28);
         _validateGasPrice();
         _validateRouter(_account);
@@ -658,12 +658,12 @@ contract Vault is ReentrancyGuard, IVault {
         emit UpdatePosition(key, position.size, position.collateral, position.averagePrice, position.entryFundingRate, position.reserveAmount, position.realisedPnl, price);
     }
 
-    function decreasePositionV2(address _account, address _collateralToken, address _indexToken, uint256 _collateralDelta, uint256 _sizeDelta, bool _isLong, address _receiver, address _oracle) external override nonReentrant withOraclePrices(_oracle) returns (uint256) {
+    function decreasePositionV2(address _account, address _collateralToken, address _indexToken, uint256 _collateralDelta, uint256 _sizeDelta, bool _isLong, address _receiver, address _oracle) external override withOraclePrices(_oracle) returns (uint256) {
         require(msg.sender == orderBook, "msg.sender != orderBook");
-        return this.decreasePosition(_account, _collateralToken, _indexToken, _collateralDelta, _sizeDelta, _isLong, _receiver);
+        return decreasePosition(_account, _collateralToken, _indexToken, _collateralDelta, _sizeDelta, _isLong, _receiver);
     }
 
-    function decreasePosition(address _account, address _collateralToken, address _indexToken, uint256 _collateralDelta, uint256 _sizeDelta, bool _isLong, address _receiver) external override nonReentrant returns (uint256) {
+    function decreasePosition(address _account, address _collateralToken, address _indexToken, uint256 _collateralDelta, uint256 _sizeDelta, bool _isLong, address _receiver) public override nonReentrant returns (uint256) {
         _validateGasPrice();
         _validateRouter(_account);
         return _decreasePosition(_account, _collateralToken, _indexToken, _collateralDelta, _sizeDelta, _isLong, _receiver);

@@ -139,6 +139,10 @@ contract Oracle is ReentrancyGuard, Governable {
         priceFeed = _priceFeed;
     }
 
+    function setoracleStore(OracleStore _oracleStore) external onlyGov {
+        oracleStore = _oracleStore;
+    }
+
     function setPositionManager(address _account, bool _isActive) external onlyGov {
         isPositionManager[_account] = _isActive;
         emit SetPositionManager(_account, _isActive);

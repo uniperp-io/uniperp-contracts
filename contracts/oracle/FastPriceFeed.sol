@@ -110,7 +110,7 @@ contract FastPriceFeed is ISecondaryPriceFeed, IFastPriceFeed, Governable {
       address _fastPriceEvents,
       address _tokenManager,
       address _positionRouter
-    ) public {
+    ) {
         require(_priceDuration <= MAX_PRICE_DURATION, "FastPriceFeed: invalid _priceDuration");
         priceDuration = _priceDuration;
         maxPriceUpdateDelay = _maxPriceUpdateDelay;
@@ -136,6 +136,10 @@ contract FastPriceFeed is ISecondaryPriceFeed, IFastPriceFeed, Governable {
             address updater = _updaters[i];
             isUpdater[updater] = true;
         }
+    }
+
+    function setPositionRouter(address _positionRouter) external onlyGov {
+        positionRouter = _positionRouter;
     }
 
     function setSigner(address _account, bool _isActive) external override onlyGov {
