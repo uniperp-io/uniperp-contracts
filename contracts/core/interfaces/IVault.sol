@@ -9,8 +9,10 @@ interface IVault {
     function isSwapEnabled() external view returns (bool);
     function isLeverageEnabled() external view returns (bool);
     function isToUseOraclePrice() external view returns (bool);
+    function isSyntheticTradeEnabled() external view returns (bool);
 
     function setOrderBook(address _account) external;
+    function setSyntheticStableToken(address _syntheticStableToken) external;
     function setVaultUtils(IVaultUtils _vaultUtils) external;
     function setError(uint256 _errorCode, string calldata _error) external;
 
@@ -47,6 +49,7 @@ interface IVault {
     function setManager(address _manager, bool _isManager) external;
     function setIsSwapEnabled(bool _isSwapEnabled) external;
     function setIsLeverageEnabled(bool _isLeverageEnabled) external;
+    function setIsSyntheticTradeEnabled(bool _isSyntheticTradeEnabled) external;
     function setMaxGasPrice(uint256 _maxGasPrice) external;
     function setUsdgAmount(address _token, uint256 _amount) external;
     function setBufferAmount(address _token, uint256 _amount) external;
@@ -90,7 +93,7 @@ interface IVault {
     
     function increasePositionV2(address _account, address _collateralToken, address _indexToken, uint256 _sizeDelta, bool _isLong, address _oracle) external;
     function increasePosition(address _account, address _collateralToken, address _indexToken, uint256 _sizeDelta, bool _isLong) external;
-
+    
     function decreasePositionV2(address _account, address _collateralToken, address _indexToken, uint256 _collateralDelta, uint256 _sizeDelta, bool _isLong, address _receiver, address _oracle) external returns (uint256);    
     function decreasePosition(address _account, address _collateralToken, address _indexToken, uint256 _collateralDelta, uint256 _sizeDelta, bool _isLong, address _receiver) external returns (uint256);
 
@@ -116,6 +119,10 @@ interface IVault {
     function allWhitelistedTokensLength() external view returns (uint256);
     function allWhitelistedTokens(uint256) external view returns (address);
     function whitelistedTokens(address _token) external view returns (bool);
+    function syntheticStableToken() external view returns (address);
+    function allSyntheticTokensLength() external view returns (uint256);
+    function allSyntheticTokens(uint256) external view returns (address);
+    function syntheticTokens(address _token) external view returns (bool);    
     function stableTokens(address _token) external view returns (bool);
     function shortableTokens(address _token) external view returns (bool);
     function feeReserves(address _token) external view returns (uint256);
@@ -125,6 +132,7 @@ interface IVault {
     function tokenDecimals(address _token) external view returns (uint256);
     function tokenWeights(address _token) external view returns (uint256);
     function guaranteedUsd(address _token) external view returns (uint256);
+    function syntheticCollateralAmounts(address _token) external view returns (uint256);    
     function poolAmounts(address _token) external view returns (uint256);
     function bufferAmounts(address _token) external view returns (uint256);
     function reservedAmounts(address _token) external view returns (uint256);
@@ -137,4 +145,7 @@ interface IVault {
     function getDelta(address _indexToken, uint256 _size, uint256 _averagePrice, bool _isLong, uint256 _lastIncreasedTime) external view returns (bool, uint256);
     function getDeltaV2(address _indexToken, uint256 _size, uint256 _averagePrice, bool _isLong, uint256 _lastIncreasedTime, uint256 markPrice) external view returns (bool, uint256);
     function getPosition(address _account, address _collateralToken, address _indexToken, bool _isLong) external view returns (uint256, uint256, uint256, uint256, uint256, uint256, bool, uint256);
+
+    function getSyntheticTotalGuaranteedUsd() external view returns (uint256);
+    function getSyntheticTotalGlobalShortSizes() external view returns (uint256);
 }

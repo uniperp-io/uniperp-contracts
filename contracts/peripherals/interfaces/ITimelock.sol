@@ -7,5 +7,6 @@ interface ITimelock {
     function enableLeverage(address _vault) external;
     function disableLeverage(address _vault) external;
     function setIsLeverageEnabled(address _vault, bool _isLeverageEnabled) external;
+    function setIsSyntheticTradeEnabled(address _vault, bool _isSyntheticTradeEnabled) external;
     function signalSetGov(address _target, address _gov) external;
 }

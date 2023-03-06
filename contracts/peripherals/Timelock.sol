@@ -271,6 +271,10 @@ contract Timelock is ITimelock {
         IVault(_vault).setIsLeverageEnabled(_isLeverageEnabled);
     }
 
+    function setIsSyntheticTradeEnabled(address _vault, bool _isSyntheticTradeEnabled) external override onlyHandlerAndAbove {
+        IVault(_vault).setIsSyntheticTradeEnabled(_isSyntheticTradeEnabled);
+    }
+
     function setTokenConfig(
         address _vault,
         address _token,
@@ -362,6 +366,10 @@ contract Timelock is ITimelock {
 
     function setOrderBook(address _vault, address _orderbook) external onlyAdmin {
         IVault(_vault).setOrderBook(_orderbook);
+    }
+
+    function setSyntheticStableToken(address _vault, address _syntheticStableToken) external onlyAdmin {
+        IVault(_vault).setSyntheticStableToken(_syntheticStableToken);
     }
 
     function setVaultUtils(address _vault, IVaultUtils _vaultUtils) external onlyAdmin {

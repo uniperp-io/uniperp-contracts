@@ -59,7 +59,7 @@ contract GlpManager is ReentrancyGuard, Governable, IGlpManager {
         uint256 amountOut
     );
 
-    constructor(address _vault, address _usdg, address _glp, address _shortsTracker, uint256 _cooldownDuration) public {
+    constructor(address _vault, address _usdg, address _glp, address _shortsTracker, uint256 _cooldownDuration) {
         gov = msg.sender;
         vault = IVault(_vault);
         usdg = _usdg;
@@ -167,10 +167,16 @@ contract GlpManager is ReentrancyGuard, Governable, IGlpManager {
                     }
                 }
 
-                aum = aum.add(_vault.guaranteedUsd(token));
-
-                uint256 reservedAmount = _vault.reservedAmounts(token);
-                aum = aum.add(poolAmount.sub(reservedAmount).mul(price).div(10 ** decimals));
+                if (_vault.syntheticTokens(token)) {
+                    //as usdc collateral for long synthetic Token had been add to poolAmount, so here should subtract it
+                    //because trader's collateral is not aum asset.
+                    uint256 collateralAmount = _vault.syntheticCollateralAmounts(token);
+                    aum = collateralAmount > aum ? 0: aum.sub(collateralAmount);
+                } else {
+                    aum = aum.add(_vault.guaranteedUsd(token));                    
+                    uint256 reservedAmount = _vault.reservedAmounts(token);
+                    aum = aum.add(poolAmount.sub(reservedAmount).mul(price).div(10 ** decimals));
+                }
             }
         }
 
