@@ -23,6 +23,7 @@ interface IVault {
     function oracle() external view returns (address);
 
     function whitelistedTokenCount() external view returns (uint256);
+    function syntheticTokenCount() external view returns (uint256);
     function maxLeverage() external view returns (uint256);
 
     function minProfitTime() external view returns (uint256);
@@ -78,7 +79,8 @@ interface IVault {
         uint256 _minProfitBps,
         uint256 _maxUsdgAmount,
         bool _isStable,
-        bool _isShortable
+        bool _isShortable,
+        bool _isSynthetic
     ) external;
 
     function setPriceFeed(address _priceFeed) external;

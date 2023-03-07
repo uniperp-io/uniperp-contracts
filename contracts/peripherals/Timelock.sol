@@ -62,7 +62,8 @@ contract Timelock is ITimelock {
         uint256 minProfitBps,
         uint256 maxUsdgAmount,
         bool isStable,
-        bool isShortable
+        bool isShortable,
+        bool isSynthetic
     );
     event ClearAction(bytes32 action);
 
@@ -292,6 +293,7 @@ contract Timelock is ITimelock {
         uint256 tokenDecimals = vault.tokenDecimals(_token);
         bool isStable = vault.stableTokens(_token);
         bool isShortable = vault.shortableTokens(_token);
+        bool isSynthetic = vault.syntheticTokens(_token);
 
         IVault(_vault).setTokenConfig(
             _token,
@@ -300,7 +302,8 @@ contract Timelock is ITimelock {
             _minProfitBps,
             _maxUsdgAmount,
             isStable,
-            isShortable
+            isShortable,
+            isSynthetic
         );
 
         IVault(_vault).setBufferAmount(_token, _bufferAmount);
@@ -532,7 +535,8 @@ contract Timelock is ITimelock {
         uint256 _minProfitBps,
         uint256 _maxUsdgAmount,
         bool _isStable,
-        bool _isShortable
+        bool _isShortable,
+        bool _isSynthetic
     ) external onlyAdmin {
         bytes32 action = keccak256(abi.encodePacked(
             "vaultSetTokenConfig",
@@ -543,7 +547,8 @@ contract Timelock is ITimelock {
             _minProfitBps,
             _maxUsdgAmount,
             _isStable,
-            _isShortable
+            _isShortable,
+            _isSynthetic
         ));
 
         _setPendingAction(action);
@@ -556,7 +561,8 @@ contract Timelock is ITimelock {
             _minProfitBps,
             _maxUsdgAmount,
             _isStable,
-            _isShortable
+            _isShortable,
+            _isSynthetic
         );
     }
 
@@ -568,7 +574,8 @@ contract Timelock is ITimelock {
         uint256 _minProfitBps,
         uint256 _maxUsdgAmount,
         bool _isStable,
-        bool _isShortable
+        bool _isShortable,
+        bool _isSynthetic
     ) external onlyAdmin {
         bytes32 action = keccak256(abi.encodePacked(
             "vaultSetTokenConfig",
@@ -579,7 +586,8 @@ contract Timelock is ITimelock {
             _minProfitBps,
             _maxUsdgAmount,
             _isStable,
-            _isShortable
+            _isShortable,
+            _isSynthetic
         ));
 
         _validateAction(action);
@@ -592,7 +600,8 @@ contract Timelock is ITimelock {
             _minProfitBps,
             _maxUsdgAmount,
             _isStable,
-            _isShortable
+            _isShortable,
+            _isSynthetic
         );
     }
 

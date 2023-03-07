@@ -214,6 +214,7 @@ contract GlpManager is ReentrancyGuard, Governable, IGlpManager {
 
     function _addLiquidity(address _fundingAccount, address _account, address _token, uint256 _amount, uint256 _minUsdg, uint256 _minGlp) private returns (uint256) {
         require(_amount > 0, "GlpManager: invalid _amount");
+        require(vault.syntheticTokens(_token), "synthetic token can not buy glp!!");
 
         // calculate aum before buyUSDG
         uint256 aumInUsdg = getAumInUsdg(true);

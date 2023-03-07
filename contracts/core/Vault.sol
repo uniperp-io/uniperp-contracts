@@ -97,6 +97,7 @@ contract Vault is ReentrancyGuard, IVault {
     bool public override isSyntheticTradeEnabled = true;
     address public override syntheticStableToken;
     address[] public override allSyntheticTokens;
+    uint256 public override syntheticTokenCount;
     mapping (address => bool) public override syntheticTokens;
 
     // tokenBalances is used only to determine _transferIn values
@@ -406,7 +407,8 @@ contract Vault is ReentrancyGuard, IVault {
         uint256 _minProfitBps,
         uint256 _maxUsdgAmount,
         bool _isStable,
-        bool _isShortable
+        bool _isShortable,
+        bool _isSynthetic
     ) external override {
         _onlyGov();
         // increment token count for the first time
@@ -415,10 +417,18 @@ contract Vault is ReentrancyGuard, IVault {
             allWhitelistedTokens.push(_token);
         }
 
+        if (_isSynthetic) {
+            if (!syntheticTokens[_token]) {
+                syntheticTokenCount = syntheticTokenCount.add(1);
+                allSyntheticTokens.push(_token);
+            }
+        }
+
         uint256 _totalTokenWeights = totalTokenWeights;
         _totalTokenWeights = _totalTokenWeights.sub(tokenWeights[_token]);
 
         whitelistedTokens[_token] = true;
+        syntheticTokens[_token] = _isSynthetic;
         tokenDecimals[_token] = _tokenDecimals;
         tokenWeights[_token] = _tokenWeight;
         minProfitBasisPoints[_token] = _minProfitBps;
@@ -444,6 +454,11 @@ contract Vault is ReentrancyGuard, IVault {
         delete stableTokens[_token];
         delete shortableTokens[_token];
         whitelistedTokenCount = whitelistedTokenCount.sub(1);
+
+        if (syntheticTokens[_token]) {
+            syntheticTokenCount = syntheticTokenCount.sub(1);
+        }
+        delete syntheticTokens[_token];
     }
 
     function withdrawFees(address _token, address _receiver) external override returns (uint256) {
@@ -616,6 +631,8 @@ contract Vault is ReentrancyGuard, IVault {
 
     function increasePosition(address _account, address _collateralToken, address _indexToken, uint256 _sizeDelta, bool _isLong) public override nonReentrant {
         if (syntheticTokens[_indexToken]) {
+            require(isSyntheticTradeEnabled, "synthetic trade is not open now!");
+            require(_collateralToken == syntheticStableToken, "should use usdc collateral to open synthetic position!");
             _increasePositionSynthetic(_account, _collateralToken, _indexToken, _sizeDelta, _isLong);
         } else {
             _increasePositionNative(_account, _collateralToken, _indexToken, _sizeDelta, _isLong);
