@@ -148,4 +148,6 @@ interface IVault {
 
     function getSyntheticTotalGuaranteedUsd() external view returns (uint256);
     function getSyntheticTotalGlobalShortSizes() external view returns (uint256);
+    function getSyntheticGlobalLongSize(address _indexToken) external view returns (uint256);
+    function getNativeGlobalLongSize(address _indexToken) external view returns (uint256);
 }

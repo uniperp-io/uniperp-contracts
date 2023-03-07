@@ -1473,4 +1473,18 @@ contract Vault is ReentrancyGuard, IVault {
         uint256 longSize = guaranteedUsd[_indexToken];
         return longSize.add(syntheticCollateralAmounts[_indexToken]);
     }
+    
+    function getNativeGlobalLongSize(address _indexToken) public view returns (uint256) {
+        require(!syntheticTokens[_indexToken], "only for native tokens!");
+        uint256 reserveAmount = reservedAmounts[_indexToken];
+        if (reserveAmount == 0) { return 0; }
+
+        uint256 reserveSize = tokenToUsdMin(_indexToken, reserveAmount);
+        uint256 totalGlobalShortSize = globalShortSizes[_indexToken];
+
+        if (reserveSize < totalGlobalShortSize) {
+            return 0;
+        }    
+        return reserveSize.sub(totalGlobalShortSize);
+    }
 }
