@@ -379,6 +379,12 @@ contract Timelock is ITimelock {
         IVault(_vault).setVaultUtils(_vaultUtils);
     }
 
+    function setUsdcSharesForSyntheticAsset(address _vault, uint256 _usdcSharesForSyntheticAsset) external onlyAdmin {
+        require(_usdcSharesForSyntheticAsset >= 0, "Invalid _usdcSharesForSyntheticAsset(less than 0)");
+        
+        IVault(_vault).setUsdcSharesForSyntheticAsset(_usdcSharesForSyntheticAsset);
+    }
+
     function setMaxGasPrice(address _vault, uint256 _maxGasPrice) external onlyAdmin {
         require(_maxGasPrice > 5000000000, "Invalid _maxGasPrice");
         IVault(_vault).setMaxGasPrice(_maxGasPrice);

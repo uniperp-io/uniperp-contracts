@@ -562,6 +562,7 @@ contract Oracle is ReentrancyGuard, Governable {
                 revert PriceAlreadySet(token, primaryPrices[token].min, primaryPrices[token].max);
             }
 
+            //TODO how about the decimal? must be 10**30
             uint256 maxPrice = IVaultPriceFeed(priceFeed).getPrice(token, true, false, false);
             uint256 minPrice = IVaultPriceFeed(priceFeed).getPrice(token, false, false, false);
 

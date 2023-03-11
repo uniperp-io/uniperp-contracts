@@ -153,30 +153,58 @@ contract GlpManager is ReentrancyGuard, Governable, IGlpManager {
 
             if (_vault.stableTokens(token)) {
                 aum = aum.add(poolAmount.mul(price).div(10 ** decimals));
-            } else {
-                // add global short profit / loss
-                uint256 size = _vault.globalShortSizes(token);
+            }
+        }
 
-                if (size > 0) {
-                    (uint256 delta, bool hasProfit) = getGlobalShortDelta(token, price, size);
-                    if (!hasProfit) {
-                        // add losses from shorts
-                        aum = aum.add(delta);
-                    } else {
-                        shortProfits = shortProfits.add(delta);
-                    }
-                }
+        address syntheticStableToken = _vault.syntheticStableToken();
+        uint256 syntheticStableTokenPrice = maximise ? _vault.getMaxPrice(syntheticStableToken) : _vault.getMinPrice(syntheticStableToken);
+        uint256 syntheticStableTokenDecimals = _vault.tokenDecimals(syntheticStableToken);
+        for (uint256 i = 0; i < length; i++) {
+            address token = vault.allWhitelistedTokens(i);
+            bool isWhitelisted = vault.whitelistedTokens(token);
 
-                if (_vault.syntheticTokens(token)) {
-                    //as usdc collateral for long synthetic Token had been add to poolAmount, so here should subtract it
-                    //because trader's collateral is not aum asset.
-                    uint256 collateralAmount = _vault.syntheticCollateralAmounts(token);
-                    aum = collateralAmount > aum ? 0: aum.sub(collateralAmount);
+            if (!isWhitelisted) {
+                continue;
+            }
+
+            uint256 price = maximise ? _vault.getMaxPrice(token) : _vault.getMinPrice(token);
+            uint256 poolAmount = _vault.poolAmounts(token);
+            uint256 decimals = _vault.tokenDecimals(token);
+
+            if (_vault.stableTokens(token)) {
+                continue;
+            }
+
+            // add global short profit / loss
+            uint256 size = _vault.globalShortSizes(token);
+
+            if (size > 0) {
+                (uint256 delta, bool hasProfit) = getGlobalShortDelta(token, price, size);
+                if (!hasProfit) {
+                    // add losses from shorts
+                    aum = aum.add(delta);
                 } else {
-                    aum = aum.add(_vault.guaranteedUsd(token));                    
-                    uint256 reservedAmount = _vault.reservedAmounts(token);
-                    aum = aum.add(poolAmount.sub(reservedAmount).mul(price).div(10 ** decimals));
+                    shortProfits = shortProfits.add(delta);
                 }
+            }
+
+            if (_vault.syntheticTokens(token)) {
+                //as usdc collateral for long synthetic Token had been added to poolAmount, so here should subtract it
+                //because trader's collateral is not aum asset.
+                uint256 collateralAmount = _vault.syntheticCollateralAmounts(token);
+
+                //collateralAmount is the amout of usdc, not indexToken
+                uint256 collateralAmountUsd = collateralAmount.mul(syntheticStableTokenPrice).div(10 ** syntheticStableTokenDecimals);
+                if (collateralAmountUsd > aum) {
+                    //on purpose to do nothing to prevent something exception
+                    //aum = 0;
+                } else {
+                    aum = aum.sub(collateralAmountUsd);
+                }
+            } else {
+                aum = aum.add(_vault.guaranteedUsd(token));
+                uint256 reservedAmount = _vault.reservedAmounts(token);
+                aum = aum.add(poolAmount.sub(reservedAmount).mul(price).div(10 ** decimals));
             }
         }
 
@@ -214,7 +242,7 @@ contract GlpManager is ReentrancyGuard, Governable, IGlpManager {
 
     function _addLiquidity(address _fundingAccount, address _account, address _token, uint256 _amount, uint256 _minUsdg, uint256 _minGlp) private returns (uint256) {
         require(_amount > 0, "GlpManager: invalid _amount");
-        require(vault.syntheticTokens(_token), "synthetic token can not buy glp!!");
+        require(!vault.syntheticTokens(_token), "synthetic token can not buy glp!!");
 
         // calculate aum before buyUSDG
         uint256 aumInUsdg = getAumInUsdg(true);

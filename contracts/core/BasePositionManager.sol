@@ -27,6 +27,7 @@ contract BasePositionManager is IBasePositionManager, ReentrancyGuard, Governabl
     using Address for address payable;
 
     uint256 public constant BASIS_POINTS_DIVISOR = 10000;
+    uint256 public constant MAX_USDC_SHARES_SYNTHETIC_ASSET = 10000;
 
     address public admin;
 
@@ -180,12 +181,13 @@ contract BasePositionManager is IBasePositionManager, ReentrancyGuard, Governabl
     function _validateSyntheticMaxGlobalSize(address _indexToken, bool _isLong, uint256 _sizeDelta) internal view {
         address stableTokenAddr = IVault(vault).syntheticStableToken();
 
+        uint256 usedTotalLongSize = IVault(vault).getSyntheticTotalGuaranteedUsd();
+        uint256 usedTotalShortSize = IVault(vault).getSyntheticTotalGlobalShortSizes();
+
         if (_isLong) {
             //check total
             //uint256 totalMaxLongSize = getSyntheticTotalMaxGlobalLongSize();
             uint256 totalMaxLongSize = maxGlobalLongSizes[stableTokenAddr];
-
-            uint256 usedTotalLongSize = IVault(vault).getSyntheticTotalGuaranteedUsd();
             if (totalMaxLongSize > 0 && usedTotalLongSize.add(_sizeDelta) > totalMaxLongSize) {
                 revert("BasePositionManager: synthetic max global longs exceeded");
             }
@@ -199,8 +201,6 @@ contract BasePositionManager is IBasePositionManager, ReentrancyGuard, Governabl
             //check total
             //uint256 totalMaxShortSize = getSyntheticTotalMaxGlobalShortSize();
             uint256 totalMaxShortSize = maxGlobalShortSizes[stableTokenAddr];
-
-            uint256 usedTotalShortSize = IVault(vault).getSyntheticTotalGlobalShortSizes();
             if (totalMaxShortSize > 0 && usedTotalShortSize.add(_sizeDelta) > totalMaxShortSize) {
                 revert("BasePositionManager: synthetic max global shorts exceeded");
             }
@@ -210,6 +210,16 @@ contract BasePositionManager is IBasePositionManager, ReentrancyGuard, Governabl
             if (maxGlobalShortSize > 0 && IVault(vault).globalShortSizes(_indexToken).add(_sizeDelta) > maxGlobalShortSize) {
                 revert("BasePositionManager: synthetic max global shorts exceeded");
             }
+        }
+
+        uint256 stableTokenAmount = IVault(vault).poolAmounts(stableTokenAddr);
+        uint256 stableTokenAmountUsd = IVault(vault).tokenToUsdMin(stableTokenAddr, stableTokenAmount);
+        uint256 maxAmountUsd = stableTokenAmountUsd.mul(IVault(vault).usdcSharesForSyntheticAsset()).div(MAX_USDC_SHARES_SYNTHETIC_ASSET);
+
+        //as usedTotalShortSize include collateral, so syntheticUsedUsdcUsd is large then actually borrowed usdc size
+        uint256 syntheticUsedUsdcUsd = usedTotalLongSize.add(usedTotalShortSize);
+        if (syntheticUsedUsdcUsd > maxAmountUsd) {
+            revert("BasePositionManager: synthetic max global shorts exceeded");
         }
     }
 

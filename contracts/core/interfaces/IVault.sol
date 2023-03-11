@@ -24,6 +24,7 @@ interface IVault {
 
     function whitelistedTokenCount() external view returns (uint256);
     function syntheticTokenCount() external view returns (uint256);
+    function usdcSharesForSyntheticAsset() external view returns (uint256);
     function maxLeverage() external view returns (uint256);
 
     function minProfitTime() external view returns (uint256);
@@ -51,6 +52,7 @@ interface IVault {
     function setIsSwapEnabled(bool _isSwapEnabled) external;
     function setIsLeverageEnabled(bool _isLeverageEnabled) external;
     function setIsSyntheticTradeEnabled(bool _isSyntheticTradeEnabled) external;
+    function setUsdcSharesForSyntheticAsset(uint256 _usdcSharesForSyntheticAsset) external;
     function setMaxGasPrice(uint256 _maxGasPrice) external;
     function setUsdgAmount(address _token, uint256 _amount) external;
     function setBufferAmount(address _token, uint256 _amount) external;

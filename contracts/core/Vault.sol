@@ -100,6 +100,10 @@ contract Vault is ReentrancyGuard, IVault {
     uint256 public override syntheticTokenCount;
     mapping (address => bool) public override syntheticTokens;
 
+    //usdc share allow to be used to synthetic asset. maximum is 10000
+    uint256 public override usdcSharesForSyntheticAsset;
+    uint256 public constant MAX_USDC_SHARES_SYNTHETIC_ASSET = 10000;
+
     // tokenBalances is used only to determine _transferIn values
     mapping (address => uint256) public override tokenBalances;
 
@@ -327,6 +331,12 @@ contract Vault is ReentrancyGuard, IVault {
     function setIsSyntheticTradeEnabled(bool _isSyntheticTradeEnabled) external override {
         _onlyGov();
         isSyntheticTradeEnabled = _isSyntheticTradeEnabled;
+    }
+
+    function setUsdcSharesForSyntheticAsset(uint256 _usdcSharesForSyntheticAsset) external override {
+        _onlyGov();
+        require(_usdcSharesForSyntheticAsset <= MAX_USDC_SHARES_SYNTHETIC_ASSET, "Invalid _usdcSharesForSyntheticAsset(large than 10000)");
+        usdcSharesForSyntheticAsset = _usdcSharesForSyntheticAsset;
     }
 
     function setMaxGasPrice(uint256 _maxGasPrice) external override {
@@ -711,7 +721,7 @@ contract Vault is ReentrancyGuard, IVault {
         _validate(isLeverageEnabled, 28);
         _validateGasPrice();
         _validateRouter(_account);
-        _validateTokensSynthetic(_collateralToken, _indexToken);
+        _validateTokensSynthetic(_collateralToken, _indexToken, _isLong);
         vaultUtils.validateIncreasePosition(_account, _collateralToken, _indexToken, _sizeDelta, _isLong);
 
         updateCumulativeFundingRate(_collateralToken, _indexToken);
@@ -1301,12 +1311,16 @@ contract Vault is ReentrancyGuard, IVault {
         _validate(shortableTokens[_indexToken], 48);
     }
 
-    function _validateTokensSynthetic(address _collateralToken, address _indexToken) private view {
-        _validate(whitelistedTokens[_collateralToken], 45);
-        _validate(stableTokens[_collateralToken], 46);
-        _validate(!stableTokens[_indexToken], 47);
-        _validate(shortableTokens[_indexToken], 48);
+    function _validateTokensSynthetic(address _collateralToken, address _indexToken, bool _isLong) private view {
+        //TODO change to require
+        require(whitelistedTokens[_collateralToken], "Synthetic collateralToken should in whitelistedTokens");
+        require(stableTokens[_collateralToken], "Synthetic collateralToken should be stable token");
+        require(!stableTokens[_indexToken], "Synthetic indexToken should not be stable token");
         require(syntheticTokens[_indexToken], "Synthetic _indexToken should in syntheticTokens!");        
+
+        if (!_isLong) {
+            require(shortableTokens[_indexToken], "Synthetic _indexToken is not shortable!");
+        }
         require(_collateralToken != _indexToken, "Synthetic _collateralToken should != _indexToken");
     }
 
