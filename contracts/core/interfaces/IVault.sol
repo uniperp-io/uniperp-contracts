@@ -20,7 +20,7 @@ interface IVault {
     function usdg() external view returns (address);
     function gov() external view returns (address);
     function orderBook() external view returns (address);
-    function oracle() external view returns (address);
+    //function oracle() external view returns (address);
 
     function whitelistedTokenCount() external view returns (uint256);
     function syntheticTokenCount() external view returns (uint256);
@@ -29,7 +29,6 @@ interface IVault {
 
     function minProfitTime() external view returns (uint256);
     function hasDynamicFees() external view returns (bool);
-    function fundingInterval() external view returns (uint256);
     function totalTokenWeights() external view returns (uint256);
     function getTargetUsdgAmount(address _token) external view returns (uint256);
 
@@ -44,7 +43,6 @@ interface IVault {
 
     function minProfitBasisPoints(address _token) external view returns (uint256);
     function tokenBalances(address _token) external view returns (uint256);
-    function lastFundingTimes(address _token) external view returns (uint256);
 
     function setMaxLeverage(uint256 _maxLeverage) external;
     function setInManagerMode(bool _inManagerMode) external;
@@ -59,8 +57,6 @@ interface IVault {
     function setMaxGlobalShortSize(address _token, uint256 _amount) external;
     function setInPrivateLiquidationMode(bool _inPrivateLiquidationMode) external;
     function setLiquidator(address _liquidator, bool _isActive) external;
-
-    function setFundingRate(uint256 _fundingInterval, uint256 _fundingRateFactor, uint256 _stableFundingRateFactor) external;
 
     function setFees(
         uint256 _taxBasisPoints,
@@ -106,10 +102,6 @@ interface IVault {
     function tokenToUsdMin(address _token, uint256 _tokenAmount) external view returns (uint256);
 
     function priceFeed() external view returns (address);
-    function fundingRateFactor() external view returns (uint256);
-    function stableFundingRateFactor() external view returns (uint256);
-    function cumulativeFundingRates(address _token) external view returns (uint256);
-    function getNextFundingRate(address _token) external view returns (uint256);
     function getFeeBasisPoints(address _token, uint256 _usdgDelta, uint256 _feeBasisPoints, uint256 _taxBasisPoints, bool _increment) external view returns (uint256);
 
     function liquidationFeeUsd() external view returns (uint256);
@@ -126,7 +118,7 @@ interface IVault {
     function syntheticStableToken() external view returns (address);
     function allSyntheticTokensLength() external view returns (uint256);
     function allSyntheticTokens(uint256) external view returns (address);
-    function syntheticTokens(address _token) external view returns (bool);    
+    function syntheticTokens(address _token) external view returns (bool);
     function stableTokens(address _token) external view returns (bool);
     function shortableTokens(address _token) external view returns (bool);
     function feeReserves(address _token) external view returns (uint256);
@@ -143,15 +135,11 @@ interface IVault {
     function usdgAmounts(address _token) external view returns (uint256);
     function maxUsdgAmounts(address _token) external view returns (uint256);
     function getRedemptionAmount(address _token, uint256 _usdgAmount) external view returns (uint256);
+    function usdToTokenMin(address _token, uint256 _usdAmount) external view returns (uint256);
     function getMaxPrice(address _token) external view returns (uint256);
     function getMinPrice(address _token) external view returns (uint256);
 
     function getDelta(address _indexToken, uint256 _size, uint256 _averagePrice, bool _isLong, uint256 _lastIncreasedTime) external view returns (bool, uint256);
     function getDeltaV2(address _indexToken, uint256 _size, uint256 _averagePrice, bool _isLong, uint256 _lastIncreasedTime, uint256 markPrice) external view returns (bool, uint256);
     function getPosition(address _account, address _collateralToken, address _indexToken, bool _isLong) external view returns (uint256, uint256, uint256, uint256, uint256, uint256, bool, uint256);
-
-    function getSyntheticTotalGuaranteedUsd() external view returns (uint256);
-    function getSyntheticTotalGlobalShortSizes() external view returns (uint256);
-    function getSyntheticGlobalLongSize(address _indexToken) external view returns (uint256);
-    function getNativeGlobalLongSize(address _indexToken) external view returns (uint256);
 }

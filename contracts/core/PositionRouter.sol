@@ -185,7 +185,7 @@ contract PositionRouter is BasePositionManager, IPositionRouter {
         address _shortsTracker,
         uint256 _depositFee,
         uint256 _minExecutionFee
-    ) public BasePositionManager(_vault, _router, _shortsTracker, _weth, _depositFee) {
+    ) BasePositionManager(_vault, _router, _shortsTracker, _weth, _depositFee) {
         minExecutionFee = _minExecutionFee;
     }
 

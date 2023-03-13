@@ -181,8 +181,8 @@ contract BasePositionManager is IBasePositionManager, ReentrancyGuard, Governabl
     function _validateSyntheticMaxGlobalSize(address _indexToken, bool _isLong, uint256 _sizeDelta) internal view {
         address stableTokenAddr = IVault(vault).syntheticStableToken();
 
-        uint256 usedTotalLongSize = IVault(vault).getSyntheticTotalGuaranteedUsd();
-        uint256 usedTotalShortSize = IVault(vault).getSyntheticTotalGlobalShortSizes();
+        uint256 usedTotalLongSize = getSyntheticTotalGuaranteedUsd();
+        uint256 usedTotalShortSize = getSyntheticTotalGlobalShortSizes();
 
         if (_isLong) {
             //check total
@@ -414,7 +414,6 @@ contract BasePositionManager is IBasePositionManager, ReentrancyGuard, Governabl
     function getSyntheticTotalMaxGlobalShortSize() public view returns (uint256) {
         IVault _vault = IVault(vault);
         uint256 cnt = _vault.allSyntheticTokensLength();
-        
         uint256 total;        
         for (uint256 i = 0; i < cnt; i++) {
             address synTokenAddr = _vault.allSyntheticTokens(i);
@@ -422,5 +421,29 @@ contract BasePositionManager is IBasePositionManager, ReentrancyGuard, Governabl
         }
 
         return total;
-    }    
+    }
+
+    function getSyntheticTotalGuaranteedUsd() public view returns (uint256) {
+        uint256 total;
+        IVault _vault = IVault(vault);
+        uint256 cnt = _vault.allSyntheticTokensLength();
+        for (uint256 i = 0; i < cnt; i++) {
+            address synTokenAddr = _vault.allSyntheticTokens(i);
+            total = total.add(_vault.guaranteedUsd(synTokenAddr));
+        }
+
+        return total;
+    }
+
+    function getSyntheticTotalGlobalShortSizes() public view returns (uint256) {
+        uint256 total;
+        IVault _vault = IVault(vault);
+        uint256 cnt = _vault.allSyntheticTokensLength();
+        for (uint256 i = 0; i < cnt; i++) {
+            address synTokenAddr = _vault.allSyntheticTokens(i);
+            total = total.add(_vault.globalShortSizes(synTokenAddr));
+        }
+
+        return total;
+    }
 }
