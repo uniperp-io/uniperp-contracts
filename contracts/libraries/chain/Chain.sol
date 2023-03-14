@@ -9,7 +9,7 @@ import "./ArbSys.sol";
 // between chain implementations
 library Chain {
     uint256 constant public ARBITRUM_CHAIN_ID = 42161;
-    uint256 constant public ARBITRUM_RINKEBY_CHAIN_ID = 421611;
+    uint256 constant public ARBITRUM_GOERLI_CHAIN_ID = 421613;
 
     ArbSys constant public arbSys = ArbSys(address(100));
 
@@ -22,7 +22,7 @@ library Chain {
     // @dev return the current block's number
     // @return the current block's number
     function currentBlockNumber() internal view returns (uint256) {
-        if (block.chainid == ARBITRUM_CHAIN_ID || block.chainid == ARBITRUM_RINKEBY_CHAIN_ID) {
+        if (block.chainid == ARBITRUM_CHAIN_ID || block.chainid == ARBITRUM_GOERLI_CHAIN_ID) {
             return arbSys.arbBlockNumber();
         }
 
@@ -32,7 +32,7 @@ library Chain {
     // @dev return the current block's hash
     // @return the current block's hash
     function getBlockHash(uint256 blockNumber) internal view returns (bytes32) {
-        if (block.chainid == ARBITRUM_CHAIN_ID || block.chainid == ARBITRUM_RINKEBY_CHAIN_ID) {
+        if (block.chainid == ARBITRUM_CHAIN_ID || block.chainid == ARBITRUM_GOERLI_CHAIN_ID) {
             return arbSys.arbBlockHash(blockNumber);
         }
 

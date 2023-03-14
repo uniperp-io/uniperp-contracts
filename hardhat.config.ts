@@ -1,9 +1,23 @@
-require("@nomiclabs/hardhat-waffle")
-require("@nomiclabs/hardhat-etherscan")
-require("hardhat-contract-sizer")
-require('@typechain/hardhat')
+//require("@nomiclabs/hardhat-waffle")
+//require("@nomiclabs/hardhat-etherscan")
+//require("hardhat-contract-sizer")
+//require('@typechain/hardhat')
+//require("hardhat-tracer");
 
-const {
+import { HardhatUserConfig } from "hardhat/config";
+import "@nomicfoundation/hardhat-toolbox";
+import "hardhat-contract-sizer";
+import "solidity-coverage";
+import "hardhat-gas-reporter";
+import "hardhat-deploy";
+
+import "@typechain/hardhat";
+import "@nomiclabs/hardhat-ethers";
+import "@nomiclabs/hardhat-waffle";
+import "@nomiclabs/hardhat-etherscan";
+import "hardhat-tracer";
+
+import {
   BSC_URL,
   BSC_DEPLOY_KEY,
   BSCSCAN_API_KEY,
@@ -23,8 +37,9 @@ const {
   POLYGON_URL,
   MAINNET_URL,
   MAINNET_DEPLOY_KEY
-} = require("./scripts/uniperp/env.json")
+} from "./scripts/uniperp/env.json";
 
+/*
 // This is a sample Hardhat task. To learn how to create your own go to
 // https://hardhat.org/guides/create-task.html
 task("accounts", "Prints the list of accounts", async () => {
@@ -33,7 +48,7 @@ task("accounts", "Prints the list of accounts", async () => {
   for (const account of accounts) {
     console.info(account.address)
   }
-})
+})*/
 
 // You need to export an object to set up your config
 // Go to https://hardhat.org/config/ to learn more
@@ -41,12 +56,15 @@ task("accounts", "Prints the list of accounts", async () => {
 /**
  * @type import('hardhat/config').HardhatUserConfig
  */
-module.exports = {
+//module.exports = {
+const config: HardhatUserConfig = {
   networks: {
     localhost: {
-      timeout: 120000
+      timeout: 120000,
+      saveDeployments: true
     },
     hardhat: {
+      saveDeployments: true,
       allowUnlimitedContractSize: true
     },
     bsc: {
@@ -119,3 +137,5 @@ module.exports = {
     target: "ethers-v5",
   },
 }
+
+export default config;

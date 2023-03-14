@@ -22,7 +22,8 @@ contract PositionManager is BasePositionManager, OracleModule {
     mapping (address => bool) public isOrderKeeper;
     mapping (address => bool) public isPartner;
     mapping (address => bool) public isLiquidator;
-    Oracle public immutable oracle;
+    //Oracle public immutable oracle;
+    Oracle public oracle;
 
     event SetOrderKeeper(address indexed account, bool isActive);
     event SetLiquidator(address indexed account, bool isActive);
@@ -53,8 +54,12 @@ contract PositionManager is BasePositionManager, OracleModule {
         uint256 _depositFee,
         address _orderBook,
         Oracle _oracle
-    ) public BasePositionManager(_vault, _router, _shortsTracker, _weth, _depositFee) {
+    ) BasePositionManager(_vault, _router, _shortsTracker, _weth, _depositFee) {
         orderBook = _orderBook;
+        oracle = _oracle;
+    }
+
+    function setOracle(Oracle _oracle) external onlyAdmin {
         oracle = _oracle;
     }
 

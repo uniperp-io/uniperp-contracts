@@ -58,7 +58,8 @@ contract GmxTimelock is IGmxTimelock {
         uint256 minProfitBps,
         uint256 maxUsdgAmount,
         bool isStable,
-        bool isShortable
+        bool isShortable,
+        bool isSynthetic
     );
     event SignalPriceFeedSetTokenConfig(
         address vaultPriceFeed,
@@ -133,10 +134,10 @@ contract GmxTimelock is IGmxTimelock {
       IVault(_vault).setMaxLeverage(_maxLeverage);
     }
 
-    function setFundingRate(address _vault, uint256 _fundingInterval, uint256 _fundingRateFactor, uint256 _stableFundingRateFactor) external onlyAdmin {
+    function setFundingRate(address _vaultUtils, uint256 _fundingInterval, uint256 _fundingRateFactor, uint256 _stableFundingRateFactor) external onlyAdmin {
         require(_fundingRateFactor < MAX_FUNDING_RATE_FACTOR, "GmxTimelock: invalid _fundingRateFactor");
         require(_stableFundingRateFactor < MAX_FUNDING_RATE_FACTOR, "GmxTimelock: invalid _stableFundingRateFactor");
-        IVault(_vault).setFundingRate(_fundingInterval, _fundingRateFactor, _stableFundingRateFactor);
+        IVaultUtils(_vaultUtils).setFundingRate(_fundingInterval, _fundingRateFactor, _stableFundingRateFactor);
     }
 
     function setFees(
@@ -189,6 +190,7 @@ contract GmxTimelock is IGmxTimelock {
         uint256 tokenDecimals = vault.tokenDecimals(_token);
         bool isStable = vault.stableTokens(_token);
         bool isShortable = vault.shortableTokens(_token);
+        bool isSynthetic = vault.syntheticTokens(_token);
 
         IVault(_vault).setTokenConfig(
             _token,
@@ -197,7 +199,8 @@ contract GmxTimelock is IGmxTimelock {
             _minProfitBps,
             _maxUsdgAmount,
             isStable,
-            isShortable
+            isShortable,
+            isSynthetic
         );
 
         IVault(_vault).setBufferAmount(_token, _bufferAmount);
@@ -407,7 +410,8 @@ contract GmxTimelock is IGmxTimelock {
         uint256 _minProfitBps,
         uint256 _maxUsdgAmount,
         bool _isStable,
-        bool _isShortable
+        bool _isShortable,
+        bool _isSynthetic
     ) external onlyAdmin {
         bytes32 action = keccak256(abi.encodePacked(
             "vaultSetTokenConfig",
@@ -418,7 +422,8 @@ contract GmxTimelock is IGmxTimelock {
             _minProfitBps,
             _maxUsdgAmount,
             _isStable,
-            _isShortable
+            _isShortable,
+            _isSynthetic
         ));
 
         _setPendingAction(action);
@@ -431,7 +436,8 @@ contract GmxTimelock is IGmxTimelock {
             _minProfitBps,
             _maxUsdgAmount,
             _isStable,
-            _isShortable
+            _isShortable,
+            _isSynthetic
         );
     }
 
@@ -443,7 +449,8 @@ contract GmxTimelock is IGmxTimelock {
         uint256 _minProfitBps,
         uint256 _maxUsdgAmount,
         bool _isStable,
-        bool _isShortable
+        bool _isShortable,
+        bool _isSynthetic
     ) external onlyAdmin {
         bytes32 action = keccak256(abi.encodePacked(
             "vaultSetTokenConfig",
@@ -454,7 +461,8 @@ contract GmxTimelock is IGmxTimelock {
             _minProfitBps,
             _maxUsdgAmount,
             _isStable,
-            _isShortable
+            _isShortable,
+            _isSynthetic
         ));
 
         _validateAction(action);
@@ -467,7 +475,8 @@ contract GmxTimelock is IGmxTimelock {
             _minProfitBps,
             _maxUsdgAmount,
             _isStable,
-            _isShortable
+            _isShortable,
+            _isSynthetic
         );
     }
 

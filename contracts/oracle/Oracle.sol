@@ -74,6 +74,7 @@ contract Oracle is ReentrancyGuard, Governable {
     // signer indexes are recorded in a signerIndexFlags uint256 value to check for uniqueness
     uint256 public constant MAX_SIGNER_INDEX = 256;
 
+    mapping (address => bool) public isPositionManager;
     address public priceFeed;
     OracleStore public oracleStore;
 
@@ -90,6 +91,9 @@ contract Oracle is ReentrancyGuard, Governable {
     // customPrices can be used to store custom price values
     // these prices will be cleared in clearAllPrices
     mapping(address => Price.Props) public customPrices;
+
+    mapping (address => uint256) public minOracleBlockNumbers;
+    mapping (address => uint256) public maxOracleBlockNumbers;
 
     error EmptyTokens();
     error InvalidBlockNumber(uint256 blockNumber);
@@ -110,7 +114,8 @@ contract Oracle is ReentrancyGuard, Governable {
     error NonEmptyTokensWithPrices(uint256 tokensWithPricesLength);
     error EmptyPriceFeed(address token);
     error PriceAlreadySet(address token, uint256 minPrice, uint256 maxPrice);
-
+    
+    event SetPositionManager(address indexed account, bool isActive);
     event EventLog1(
         address msgSender,
         string indexed eventNameHash,
@@ -119,8 +124,12 @@ contract Oracle is ReentrancyGuard, Governable {
         EventUtils.EventLogData eventData
     );
 
-    constructor(
-    ) public {
+    modifier onlyPositionManager() {
+        require(isPositionManager[msg.sender], "OrderBook: forbidden");
+        _;
+    }
+
+    constructor() {
         // sign prices with only the chainid and oracle name so that there is
         // less config required in the oracle nodes
         SALT = keccak256(abi.encode(block.chainid, "xget-oracle-v1"));
@@ -128,6 +137,15 @@ contract Oracle is ReentrancyGuard, Governable {
 
     function setPriceFeed(address _priceFeed) external onlyGov {
         priceFeed = _priceFeed;
+    }
+
+    function setoracleStore(OracleStore _oracleStore) external onlyGov {
+        oracleStore = _oracleStore;
+    }
+
+    function setPositionManager(address _account, bool _isActive) external onlyGov {
+        isPositionManager[_account] = _isActive;
+        emit SetPositionManager(_account, _isActive);
     }
 
     // @dev validate and store signed prices
@@ -220,9 +238,7 @@ contract Oracle is ReentrancyGuard, Governable {
     // - USDC: 30 - 6 - 6 => 18
     // - DG: 30 - 18 - 11 => 1
     // @param params OracleUtils.SetPricesParams
-    function setPrices(
-        OracleUtils.SetPricesParams memory params
-    ) external onlyGov {
+    function setPrices(OracleUtils.SetPricesParams memory params) external onlyPositionManager {
         if (tokensWithPrices.length() != 0) {
             revert NonEmptyTokensWithPrices(tokensWithPrices.length());
         }
@@ -290,7 +306,7 @@ contract Oracle is ReentrancyGuard, Governable {
     }
 
     // @dev clear all prices
-    function clearAllPrices() external onlyGov {
+    function clearAllPrices() external onlyPositionManager {
         uint256 length = tokensWithPrices.length();
         for (uint256 i = 0; i < length; i++) {
             address token = tokensWithPrices.at(0);
@@ -529,7 +545,9 @@ contract Oracle is ReentrancyGuard, Governable {
                     medianMaxPrice
                 );
             }
-
+            
+            minOracleBlockNumbers[cache.info.token] = cache.info.minOracleBlockNumber;
+            maxOracleBlockNumbers[cache.info.token] = cache.info.maxOracleBlockNumber;
             tokensWithPrices.add(cache.info.token);
         }
     }
@@ -544,6 +562,7 @@ contract Oracle is ReentrancyGuard, Governable {
                 revert PriceAlreadySet(token, primaryPrices[token].min, primaryPrices[token].max);
             }
 
+            //TODO how about the decimal? must be 10**30
             uint256 maxPrice = IVaultPriceFeed(priceFeed).getPrice(token, true, false, false);
             uint256 minPrice = IVaultPriceFeed(priceFeed).getPrice(token, false, false, false);
 

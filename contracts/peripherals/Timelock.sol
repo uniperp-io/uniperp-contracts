@@ -62,7 +62,8 @@ contract Timelock is ITimelock {
         uint256 minProfitBps,
         uint256 maxUsdgAmount,
         bool isStable,
-        bool isShortable
+        bool isShortable,
+        bool isSynthetic
     );
     event ClearAction(bytes32 action);
 
@@ -159,10 +160,10 @@ contract Timelock is ITimelock {
       IVault(_vault).setMaxLeverage(_maxLeverage);
     }
 
-    function setFundingRate(address _vault, uint256 _fundingInterval, uint256 _fundingRateFactor, uint256 _stableFundingRateFactor) external onlyKeeperAndAbove {
+    function setFundingRate(address _vaultUtils, uint256 _fundingInterval, uint256 _fundingRateFactor, uint256 _stableFundingRateFactor) external onlyKeeperAndAbove {
         require(_fundingRateFactor < MAX_FUNDING_RATE_FACTOR, "Timelock: invalid _fundingRateFactor");
         require(_stableFundingRateFactor < MAX_FUNDING_RATE_FACTOR, "Timelock: invalid _stableFundingRateFactor");
-        IVault(_vault).setFundingRate(_fundingInterval, _fundingRateFactor, _stableFundingRateFactor);
+        IVaultUtils(_vaultUtils).setFundingRate(_fundingInterval, _fundingRateFactor, _stableFundingRateFactor);
     }
 
     function setShouldToggleIsLeverageEnabled(bool _shouldToggleIsLeverageEnabled) external onlyHandlerAndAbove {
@@ -271,6 +272,10 @@ contract Timelock is ITimelock {
         IVault(_vault).setIsLeverageEnabled(_isLeverageEnabled);
     }
 
+    function setIsSyntheticTradeEnabled(address _vault, bool _isSyntheticTradeEnabled) external override onlyHandlerAndAbove {
+        IVault(_vault).setIsSyntheticTradeEnabled(_isSyntheticTradeEnabled);
+    }
+
     function setTokenConfig(
         address _vault,
         address _token,
@@ -288,6 +293,7 @@ contract Timelock is ITimelock {
         uint256 tokenDecimals = vault.tokenDecimals(_token);
         bool isStable = vault.stableTokens(_token);
         bool isShortable = vault.shortableTokens(_token);
+        bool isSynthetic = vault.syntheticTokens(_token);
 
         IVault(_vault).setTokenConfig(
             _token,
@@ -296,7 +302,8 @@ contract Timelock is ITimelock {
             _minProfitBps,
             _maxUsdgAmount,
             isStable,
-            isShortable
+            isShortable,
+            isSynthetic
         );
 
         IVault(_vault).setBufferAmount(_token, _bufferAmount);
@@ -360,8 +367,22 @@ contract Timelock is ITimelock {
         IReferralStorage(_referralStorage).govSetCodeOwner(_code, _newAccount);
     }
 
+    function setOrderBook(address _vault, address _orderbook) external onlyAdmin {
+        IVault(_vault).setOrderBook(_orderbook);
+    }
+
+    function setSyntheticStableToken(address _vault, address _syntheticStableToken) external onlyAdmin {
+        IVault(_vault).setSyntheticStableToken(_syntheticStableToken);
+    }
+
     function setVaultUtils(address _vault, IVaultUtils _vaultUtils) external onlyAdmin {
         IVault(_vault).setVaultUtils(_vaultUtils);
+    }
+
+    function setUsdcSharesForSyntheticAsset(address _vault, uint256 _usdcSharesForSyntheticAsset) external onlyAdmin {
+        require(_usdcSharesForSyntheticAsset >= 0, "Invalid _usdcSharesForSyntheticAsset(less than 0)");
+        
+        IVault(_vault).setUsdcSharesForSyntheticAsset(_usdcSharesForSyntheticAsset);
     }
 
     function setMaxGasPrice(address _vault, uint256 _maxGasPrice) external onlyAdmin {
@@ -520,7 +541,8 @@ contract Timelock is ITimelock {
         uint256 _minProfitBps,
         uint256 _maxUsdgAmount,
         bool _isStable,
-        bool _isShortable
+        bool _isShortable,
+        bool _isSynthetic
     ) external onlyAdmin {
         bytes32 action = keccak256(abi.encodePacked(
             "vaultSetTokenConfig",
@@ -531,7 +553,8 @@ contract Timelock is ITimelock {
             _minProfitBps,
             _maxUsdgAmount,
             _isStable,
-            _isShortable
+            _isShortable,
+            _isSynthetic
         ));
 
         _setPendingAction(action);
@@ -544,7 +567,8 @@ contract Timelock is ITimelock {
             _minProfitBps,
             _maxUsdgAmount,
             _isStable,
-            _isShortable
+            _isShortable,
+            _isSynthetic
         );
     }
 
@@ -556,7 +580,8 @@ contract Timelock is ITimelock {
         uint256 _minProfitBps,
         uint256 _maxUsdgAmount,
         bool _isStable,
-        bool _isShortable
+        bool _isShortable,
+        bool _isSynthetic
     ) external onlyAdmin {
         bytes32 action = keccak256(abi.encodePacked(
             "vaultSetTokenConfig",
@@ -567,7 +592,8 @@ contract Timelock is ITimelock {
             _minProfitBps,
             _maxUsdgAmount,
             _isStable,
-            _isShortable
+            _isShortable,
+            _isSynthetic
         ));
 
         _validateAction(action);
@@ -580,7 +606,8 @@ contract Timelock is ITimelock {
             _minProfitBps,
             _maxUsdgAmount,
             _isStable,
-            _isShortable
+            _isShortable,
+            _isSynthetic
         );
     }
 

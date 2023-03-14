@@ -33,7 +33,7 @@ contract Router is IRouter {
         _;
     }
 
-    constructor(address _vault, address _usdg, address _weth) public {
+    constructor(address _vault, address _usdg, address _weth) {
         vault = _vault;
         usdg = _usdg;
         weth = _weth;

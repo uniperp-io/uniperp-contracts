@@ -24,10 +24,7 @@ contract OracleModule {
     //
     // @param oracle Oracle
     // @param params OracleUtils.SetPricesParams
-    modifier withOraclePrices(
-        Oracle oracle,
-        OracleUtils.SetPricesParams memory params
-    ) {
+    modifier withOraclePrices(Oracle oracle, OracleUtils.SetPricesParams memory params) {
         oracle.setPrices(params);
         _;
         oracle.clearAllPrices();

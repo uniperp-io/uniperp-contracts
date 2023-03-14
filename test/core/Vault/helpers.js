@@ -58,7 +58,13 @@ const errors = [
   "Vault: reserve exceeds pool",
   "Vault: forbidden",
   "Vault: forbidden",
-  "Vault: maxGasPrice exceeded"
+  "Vault: maxGasPrice exceeded",
+  "Vault: Synthetic collateralToken should in whitelistedTokens",
+  "Vault: Synthetic collateralToken should be stable token",
+  "Vault: Synthetic indexToken should not be stable token",
+  "Vault: Synthetic _indexToken should in syntheticTokens",
+  "Vault: Synthetic _indexToken is not shortable",
+  "Vault: Synthetic _collateralToken should != _indexToken"
 ]
 
 async function initVaultErrors(vault) {
