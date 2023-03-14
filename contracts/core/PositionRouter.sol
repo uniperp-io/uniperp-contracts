@@ -242,20 +242,19 @@ contract PositionRouter is BasePositionManager, IPositionRouter {
             // an error could be thrown if the request is too old or if the slippage is
             // higher than what the user specified, or if there is insufficient liquidity for the position
             // in case an error was thrown, cancel the request
-
+            /*
             bool _wasExecuted = this.executeIncreasePosition(key, _executionFeeReceiver);
             if (!_wasExecuted) {
                 revert("executeIncreasePosition failed!!");
+            }*/
+            try this.executeIncreasePosition(key, _executionFeeReceiver) returns (bool _wasExecuted) {
+                if (!_wasExecuted) { break; }
+            } catch {
+                // wrap this call in a try catch to prevent invalid cancels from blocking the loop
+                try this.cancelIncreasePosition(key, _executionFeeReceiver) returns (bool _wasCancelled) {
+                    if (!_wasCancelled) { break; }
+                } catch {}
             }
-
-            //try this.executeIncreasePosition(key, _executionFeeReceiver) returns (bool _wasExecuted) {
-            //    if (!_wasExecuted) { break; }
-            //} catch {
-            //    // wrap this call in a try catch to prevent invalid cancels from blocking the loop
-            //    try this.cancelIncreasePosition(key, _executionFeeReceiver) returns (bool _wasCancelled) {
-            //        if (!_wasCancelled) { break; }
-            //    } catch {}
-            //}
 
             delete increasePositionRequestKeys[index];
             index++;
@@ -282,19 +281,19 @@ contract PositionRouter is BasePositionManager, IPositionRouter {
             // minimum number of blocks has not yet passed
             // an error could be thrown if the request is too old
             // in case an error was thrown, cancel the request
+            /*
             bool _wasExecuted = this.executeDecreasePosition(key, _executionFeeReceiver);
             if (!_wasExecuted) {
                 revert("executeDecreasePosition failed!!");
+            }*/
+            try this.executeDecreasePosition(key, _executionFeeReceiver) returns (bool _wasExecuted) {
+                if (!_wasExecuted) { break; }
+            } catch {
+                // wrap this call in a try catch to prevent invalid cancels from blocking the loop
+                try this.cancelDecreasePosition(key, _executionFeeReceiver) returns (bool _wasCancelled) {
+                    if (!_wasCancelled) { break; }
+                } catch {}
             }
-
-            //try this.executeDecreasePosition(key, _executionFeeReceiver) returns (bool _wasExecuted) {
-            //    if (!_wasExecuted) { break; }
-            //} catch {
-            //    // wrap this call in a try catch to prevent invalid cancels from blocking the loop
-            //    try this.cancelDecreasePosition(key, _executionFeeReceiver) returns (bool _wasCancelled) {
-            //        if (!_wasCancelled) { break; }
-            //    } catch {}
-            //}
 
             delete decreasePositionRequestKeys[index];
             index++;
