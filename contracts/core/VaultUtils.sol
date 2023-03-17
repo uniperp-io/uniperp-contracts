@@ -26,6 +26,12 @@ contract VaultUtils is IVaultUtils, Governable {
     uint256 public constant MIN_FUNDING_RATE_INTERVAL = 1 hours;
     uint256 public constant MAX_FUNDING_RATE_FACTOR = 10000; // 1%
 
+    uint256 public override maxLeverage = 50 * 10000; // 50x
+    mapping (address => uint256) public override maxLeverages;
+    uint256 public constant MIN_LEVERAGE = 10000; // 1x
+
+    mapping (address => bool) public override isTradable;
+
     IVault public vault;
     mapping (uint256 => string) public errors;
     address public errorController;
@@ -57,6 +63,24 @@ contract VaultUtils is IVaultUtils, Governable {
     function initialize(uint256 _fundingRateFactor, uint256 _stableFundingRateFactor) external onlyGov {
         fundingRateFactor = _fundingRateFactor;
         stableFundingRateFactor = _stableFundingRateFactor;
+    }
+
+    function setMaxLeverage(uint256 _maxLeverage) external override onlyGov {
+        _validate(_maxLeverage > MIN_LEVERAGE, 2);
+        maxLeverage = _maxLeverage;
+    }
+
+    function setMaxLeverages(address _token, uint256 _maxLeverage) external override onlyGov {
+        _validate(_maxLeverage > MIN_LEVERAGE, 2);
+        maxLeverages[_token] = _maxLeverage;
+    }
+
+    function setIsTradable(address _token, bool _isTradable) external override onlyGov {
+        isTradable[_token] = _isTradable;
+    }
+
+    function validateTradablePair(address _token1, address _token2) public override view {
+        require(isTradable[_token1] && isTradable[_token2], "notTradable");
     }
 
     function setFundingRate(uint256 _fundingInterval, uint256 _fundingRateFactor, uint256 _stableFundingRateFactor) external override onlyGov {
@@ -96,12 +120,23 @@ contract VaultUtils is IVaultUtils, Governable {
         return _fundingRateFactor.mul(vault.reservedAmounts(_token)).mul(intervals).div(poolAmount);
     }
 
-    function validateIncreasePosition(address /* _account */, address /* _collateralToken */, address /* _indexToken */, uint256 /* _sizeDelta */, bool /* _isLong */) external override view {
-        // no additional validations
+    function validateSwap(address _tokenIn, address _tokenOut) external override view {
+        _validate(vault.whitelistedTokens(_tokenIn), 24);
+        _validate(vault.whitelistedTokens(_tokenOut), 25);
+        _validate(_tokenIn != _tokenOut, 26);
+        validateTradablePair(_tokenIn, _tokenOut);
+        require(!vault.syntheticTokens(_tokenIn), "swapSyn1");
+        require(!vault.syntheticTokens(_tokenOut), "swapSyn2");
     }
 
-    function validateDecreasePosition(address /* _account */, address /* _collateralToken */, address /* _indexToken */ , uint256 /* _collateralDelta */, uint256 /* _sizeDelta */, bool /* _isLong */, address /* _receiver */) external override view {
+    function validateIncreasePosition(address /* _account */, address /* _collateralToken */, address  _indexToken, uint256 /* _sizeDelta */, bool /* _isLong */) external override view {
         // no additional validations
+        require(isTradable[_indexToken], "notTrade");
+    }
+
+    function validateDecreasePosition(address /* _account */, address /* _collateralToken */, address  _indexToken, uint256 /* _collateralDelta */, uint256 /* _sizeDelta */, bool /* _isLong */, address /* _receiver */) external override view {
+        // no additional validations
+        require(isTradable[_indexToken], "notTrade");
     }
 
     function getPosition(address _account, address _collateralToken, address _indexToken, bool _isLong) internal view returns (Position memory) {
@@ -147,7 +182,12 @@ contract VaultUtils is IVaultUtils, Governable {
             return (1, marginFees);
         }
 
-        if (remainingCollateral.mul(_vault.maxLeverage()) < position.size.mul(BASIS_POINTS_DIVISOR)) {
+        uint256 tokenMaxLeverage = maxLeverages[_indexToken];
+        if (tokenMaxLeverage == 0) {
+            tokenMaxLeverage = maxLeverage;
+        }
+        require(tokenMaxLeverage >= MIN_LEVERAGE, "tokenMaxLeverage too small");
+        if (remainingCollateral.mul(tokenMaxLeverage) < position.size.mul(BASIS_POINTS_DIVISOR)) {
             if (_raise) { revert("Vault: maxLeverage exceeded"); }
             return (2, marginFees);
         }

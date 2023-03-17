@@ -129,9 +129,18 @@ contract GmxTimelock is IGmxTimelock {
         buffer = _buffer;
     }
 
-    function setMaxLeverage(address _vault, uint256 _maxLeverage) external onlyAdmin {
-      require(_maxLeverage > MAX_LEVERAGE_VALIDATION, "GmxTimelock: invalid _maxLeverage");
-      IVault(_vault).setMaxLeverage(_maxLeverage);
+    function setMaxLeverage(address _vaultUtils, uint256 _maxLeverage) external onlyAdmin {
+      require(_maxLeverage > MAX_LEVERAGE_VALIDATION, "Timelock: invalid _maxLeverage");
+      IVaultUtils(_vaultUtils).setMaxLeverage(_maxLeverage);
+    }
+
+    function setMaxLeverages(address _vaultUtils, address _token, uint256 _maxLeverage) external onlyAdmin {
+      require(_maxLeverage > MAX_LEVERAGE_VALIDATION, "Timelock: invalid _maxLeverage");
+      IVaultUtils(_vaultUtils).setMaxLeverages(_token, _maxLeverage);
+    }
+
+    function setIsTradable(address _vaultUtils, address _token, bool _isTradable) external onlyAdmin {
+        IVaultUtils(_vaultUtils).setIsTradable(_token, _isTradable);
     }
 
     function setFundingRate(address _vaultUtils, uint256 _fundingInterval, uint256 _fundingRateFactor, uint256 _stableFundingRateFactor) external onlyAdmin {

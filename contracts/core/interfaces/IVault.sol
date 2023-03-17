@@ -25,7 +25,6 @@ interface IVault {
     function whitelistedTokenCount() external view returns (uint256);
     function syntheticTokenCount() external view returns (uint256);
     function usdcSharesForSyntheticAsset() external view returns (uint256);
-    function maxLeverage() external view returns (uint256);
 
     function minProfitTime() external view returns (uint256);
     function hasDynamicFees() external view returns (bool);
@@ -44,7 +43,6 @@ interface IVault {
     function minProfitBasisPoints(address _token) external view returns (uint256);
     function tokenBalances(address _token) external view returns (uint256);
 
-    function setMaxLeverage(uint256 _maxLeverage) external;
     function setInManagerMode(bool _inManagerMode) external;
     function setManager(address _manager, bool _isManager) external;
     function setIsSwapEnabled(bool _isSwapEnabled) external;

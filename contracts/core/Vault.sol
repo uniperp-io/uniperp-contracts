@@ -30,7 +30,6 @@ contract Vault is ReentrancyGuard, IVault {
     uint256 public constant BASIS_POINTS_DIVISOR = 10000;
     uint256 public constant FUNDING_RATE_PRECISION = 1000000;
     uint256 public constant PRICE_PRECISION = 10 ** 30;
-    uint256 public constant MIN_LEVERAGE = 10000; // 1x
     uint256 public constant USDG_DECIMALS = 18;
     uint256 public constant MAX_FEE_BASIS_POINTS = 500; // 5%
     uint256 public constant MAX_LIQUIDATION_FEE_USD = 100 * PRICE_PRECISION; // 100 USD
@@ -52,8 +51,6 @@ contract Vault is ReentrancyGuard, IVault {
     address public override gov;
 
     uint256 public override whitelistedTokenCount;
-
-    uint256 public override maxLeverage = 50 * 10000; // 50x
 
     uint256 public override liquidationFeeUsd;
     uint256 public override taxBasisPoints = 50; // 0.5%
@@ -335,12 +332,6 @@ contract Vault is ReentrancyGuard, IVault {
         priceFeed = _priceFeed;
     }
 
-    function setMaxLeverage(uint256 _maxLeverage) external override {
-        _onlyGov();
-        _validate(_maxLeverage > MIN_LEVERAGE, 2);
-        maxLeverage = _maxLeverage;
-    }
-
     function setBufferAmount(address _token, uint256 _amount) external override {
         _onlyGov();
         bufferAmounts[_token] = _amount;
@@ -563,12 +554,7 @@ contract Vault is ReentrancyGuard, IVault {
 
     function swap(address _tokenIn, address _tokenOut, address _receiver) public override nonReentrant returns (uint256) {
         _validate(isSwapEnabled, 23);
-        _validate(whitelistedTokens[_tokenIn], 24);
-        _validate(whitelistedTokens[_tokenOut], 25);
-        _validate(_tokenIn != _tokenOut, 26);
-        require(!syntheticTokens[_tokenIn], "swapSyn1");
-        require(!syntheticTokens[_tokenOut], "swapSyn2");
-
+        vaultUtils.validateSwap(_tokenIn, _tokenOut);
         useSwapPricing = true;
 
         updateCumulativeFundingRate(_tokenIn, _tokenIn);
