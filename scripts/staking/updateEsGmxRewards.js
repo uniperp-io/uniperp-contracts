@@ -5,38 +5,38 @@ const network = (process.env.HARDHAT_NETWORK || 'mainnet');
 
 const shouldSendTxn = true
 
-const monthlyEsGmxForGlpOnArb = expandDecimals(toInt("0"), 18)
-const monthlyEsGmxForGlpOnAvax = expandDecimals(toInt("0"), 18)
+const monthlyEsUnipForUlpOnArb = expandDecimals(toInt("0"), 18)
+const monthlyEsUnipForUlpOnAvax = expandDecimals(toInt("0"), 18)
 
 async function getStakedAmounts() {
-  const arbStakedGmxTracker = await contractAt("RewardTracker", "0x908C4D94D34924765f1eDc22A1DD098397c59dD4", signers.arbitrum)
-  const arbStakedGmxAndEsGmx =await arbStakedGmxTracker.totalSupply()
+  const arbStakedUnipTracker = await contractAt("RewardTracker", "0x908C4D94D34924765f1eDc22A1DD098397c59dD4", signers.arbitrum)
+  const arbStakedUnipAndEsUnip =await arbStakedUnipTracker.totalSupply()
 
-  const avaxStakedGmxTracker = await contractAt("RewardTracker", "0x908C4D94D34924765f1eDc22A1DD098397c59dD4", signers.avax)
-  const avaxStakedGmxAndEsGmx =await avaxStakedGmxTracker.totalSupply()
+  const avaxStakedUnipTracker = await contractAt("RewardTracker", "0x908C4D94D34924765f1eDc22A1DD098397c59dD4", signers.avax)
+  const avaxStakedUnipAndEsUnip =await avaxStakedUnipTracker.totalSupply()
 
   return {
-    arbStakedGmxAndEsGmx,
-    avaxStakedGmxAndEsGmx
+    arbStakedUnipAndEsUnip,
+    avaxStakedUnipAndEsUnip
   }
 }
 
 async function getArbValues() {
-  const gmxRewardTracker = await contractAt("RewardTracker", "0x908C4D94D34924765f1eDc22A1DD098397c59dD4")
-  const glpRewardTracker = await contractAt("RewardTracker", "0x1aDDD80E6039594eE970E5872D247bf0414C8903")
+  const unipRewardTracker = await contractAt("RewardTracker", "0x908C4D94D34924765f1eDc22A1DD098397c59dD4")
+  const ulpRewardTracker = await contractAt("RewardTracker", "0x1aDDD80E6039594eE970E5872D247bf0414C8903")
   const tokenDecimals = 18
-  const monthlyEsGmxForGlp = monthlyEsGmxForGlpOnArb
+  const monthlyEsUnipForUlp = monthlyEsUnipForUlpOnArb
 
-  return { tokenDecimals, gmxRewardTracker, glpRewardTracker, monthlyEsGmxForGlp }
+  return { tokenDecimals, unipRewardTracker, ulpRewardTracker, monthlyEsUnipForUlp }
 }
 
 async function getAvaxValues() {
-  const gmxRewardTracker = await contractAt("RewardTracker", "0x2bD10f8E93B3669b6d42E74eEedC65dd1B0a1342")
-  const glpRewardTracker = await contractAt("RewardTracker", "0x9e295B5B976a184B14aD8cd72413aD846C299660")
+  const unipRewardTracker = await contractAt("RewardTracker", "0x2bD10f8E93B3669b6d42E74eEedC65dd1B0a1342")
+  const ulpRewardTracker = await contractAt("RewardTracker", "0x9e295B5B976a184B14aD8cd72413aD846C299660")
   const tokenDecimals = 18
-  const monthlyEsGmxForGlp = monthlyEsGmxForGlpOnAvax
+  const monthlyEsUnipForUlp = monthlyEsUnipForUlpOnAvax
 
-  return { tokenDecimals, gmxRewardTracker, glpRewardTracker, monthlyEsGmxForGlp }
+  return { tokenDecimals, unipRewardTracker, ulpRewardTracker, monthlyEsUnipForUlp }
 }
 
 function getValues() {
@@ -54,15 +54,15 @@ function toInt(value) {
 }
 
 async function main() {
-  const { arbStakedGmxAndEsGmx, avaxStakedGmxAndEsGmx } = await getStakedAmounts()
-  const { tokenDecimals, gmxRewardTracker, glpRewardTracker, monthlyEsGmxForGlp } = await getValues()
+  const { arbStakedUnipAndEsUnip, avaxStakedUnipAndEsUnip } = await getStakedAmounts()
+  const { tokenDecimals, unipRewardTracker, ulpRewardTracker, monthlyEsUnipForUlp } = await getValues()
 
   const stakedAmounts = {
     arbitrum: {
-      total: arbStakedGmxAndEsGmx
+      total: arbStakedUnipAndEsUnip
     },
     avax: {
-      total: avaxStakedGmxAndEsGmx
+      total: avaxStakedUnipAndEsUnip
     }
   }
 
@@ -72,29 +72,29 @@ async function main() {
     totalStaked = totalStaked.add(stakedAmounts[net].total)
   }
 
-  const totalEsGmxRewards = expandDecimals(25000, tokenDecimals)
+  const totalEsUnipRewards = expandDecimals(25000, tokenDecimals)
   const secondsPerMonth = 28 * 24 * 60 * 60
 
-  const gmxRewardDistributor = await contractAt("RewardDistributor", await gmxRewardTracker.distributor())
+  const unipRewardDistributor = await contractAt("RewardDistributor", await unipRewardTracker.distributor())
 
-  const gmxCurrentTokensPerInterval = await gmxRewardDistributor.tokensPerInterval()
-  const gmxNextTokensPerInterval = totalEsGmxRewards.mul(stakedAmounts[network].total).div(totalStaked).div(secondsPerMonth)
-  const gmxDelta = gmxNextTokensPerInterval.sub(gmxCurrentTokensPerInterval).mul(10000).div(gmxCurrentTokensPerInterval)
+  const unipCurrentTokensPerInterval = await unipRewardDistributor.tokensPerInterval()
+  const unipNextTokensPerInterval = totalEsUnipRewards.mul(stakedAmounts[network].total).div(totalStaked).div(secondsPerMonth)
+  const unipDelta = unipNextTokensPerInterval.sub(unipCurrentTokensPerInterval).mul(10000).div(unipCurrentTokensPerInterval)
 
-  console.log("gmxCurrentTokensPerInterval", gmxCurrentTokensPerInterval.toString())
-  console.log("gmxNextTokensPerInterval", gmxNextTokensPerInterval.toString(), `${gmxDelta.toNumber() / 100.00}%`)
+  console.log("unipCurrentTokensPerInterval", unipCurrentTokensPerInterval.toString())
+  console.log("unipNextTokensPerInterval", unipNextTokensPerInterval.toString(), `${unipDelta.toNumber() / 100.00}%`)
 
-  const glpRewardDistributor = await contractAt("RewardDistributor", await glpRewardTracker.distributor())
+  const ulpRewardDistributor = await contractAt("RewardDistributor", await ulpRewardTracker.distributor())
 
-  const glpCurrentTokensPerInterval = await glpRewardDistributor.tokensPerInterval()
-  const glpNextTokensPerInterval = monthlyEsGmxForGlp.div(secondsPerMonth)
+  const ulpCurrentTokensPerInterval = await ulpRewardDistributor.tokensPerInterval()
+  const ulpNextTokensPerInterval = monthlyEsUnipForUlp.div(secondsPerMonth)
 
-  console.log("glpCurrentTokensPerInterval", glpCurrentTokensPerInterval.toString())
-  console.log("glpNextTokensPerInterval", glpNextTokensPerInterval.toString())
+  console.log("ulpCurrentTokensPerInterval", ulpCurrentTokensPerInterval.toString())
+  console.log("ulpNextTokensPerInterval", ulpNextTokensPerInterval.toString())
 
   if (shouldSendTxn) {
-    await updateTokensPerInterval(gmxRewardDistributor, gmxNextTokensPerInterval, "gmxRewardDistributor")
-    await updateTokensPerInterval(glpRewardDistributor, glpNextTokensPerInterval, "glpRewardDistributor")
+    await updateTokensPerInterval(unipRewardDistributor, unipNextTokensPerInterval, "unipRewardDistributor")
+    await updateTokensPerInterval(ulpRewardDistributor, ulpNextTokensPerInterval, "ulpRewardDistributor")
   }
 }
 

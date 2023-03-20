@@ -53,7 +53,7 @@ async function getFeesUsd(vault, reader, tokenInfo) {
   return feesUsd
 }
 
-async function getGmxPrice(ethPrice) {
+async function getUnipPrice(ethPrice) {
   const uniPool = await contractAt("UniPool", "0x80A9ae39310abf666A87C743d6ebBD0E8C42158E")
   const uniPoolSlot0 = await uniPool.slot0()
 
@@ -83,13 +83,13 @@ async function getArbValues() {
   const tokenInfo = await getInfoTokens(vault, reader, tokens)
   const nativeTokenPrice = tokenInfo[tokens.nativeToken.address].maxPrice
   const feesUsd = await getFeesUsd(vault, reader, tokenInfo)
-  const stakedGmx = await contractAt("Token", "0xd2D1162512F927a7e282Ef43a362659E4F2a728F", signer)
-  const stakedGmxSupply = await stakedGmx.totalSupply()
+  const stakedUnip = await contractAt("Token", "0xd2D1162512F927a7e282Ef43a362659E4F2a728F", signer)
+  const stakedUnipSupply = await stakedUnip.totalSupply()
   const { totalTransferAmount: keeperCosts } = await getArbKeeperValues()
-  const glpManager = await contractAt("GlpManager", "0x321F653eED006AD1C29D174e17d96351BDe22649", signer)
-  const glpAum = await glpManager.getAum(true)
+  const ulpManager = await contractAt("UlpManager", "0x321F653eED006AD1C29D174e17d96351BDe22649", signer)
+  const ulpAum = await ulpManager.getAum(true)
 
-  return { vault, reader, tokens, tokenInfo, nativeTokenPrice, feesUsd, stakedGmx, stakedGmxSupply, keeperCosts, glpManager, glpAum }
+  return { vault, reader, tokens, tokenInfo, nativeTokenPrice, feesUsd, stakedUnip, stakedUnipSupply, keeperCosts, ulpManager, ulpAum }
 }
 
 async function getAvaxValues() {
@@ -100,13 +100,13 @@ async function getAvaxValues() {
   const tokenInfo = await getInfoTokens(vault, reader, tokens)
   const nativeTokenPrice = tokenInfo[tokens.nativeToken.address].maxPrice
   const feesUsd = await getFeesUsd(vault, reader, tokenInfo)
-  const stakedGmx = await contractAt("Token", "0x4d268a7d4C16ceB5a606c173Bd974984343fea13", signer)
-  const stakedGmxSupply = await stakedGmx.totalSupply()
+  const stakedUnip = await contractAt("Token", "0x4d268a7d4C16ceB5a606c173Bd974984343fea13", signer)
+  const stakedUnipSupply = await stakedUnip.totalSupply()
   const { totalTransferAmount: keeperCosts } = await getAvaxKeeperValues()
-  const glpManager = await contractAt("GlpManager", "0xe1ae4d4b06A5Fe1fc288f6B4CD72f9F8323B107F", signer)
-  const glpAum = await glpManager.getAum(true)
+  const ulpManager = await contractAt("UlpManager", "0xe1ae4d4b06A5Fe1fc288f6B4CD72f9F8323B107F", signer)
+  const ulpAum = await ulpManager.getAum(true)
 
-  return { vault, reader, tokens, tokenInfo, nativeTokenPrice, feesUsd, stakedGmx, stakedGmxSupply, keeperCosts, glpManager, glpAum }
+  return { vault, reader, tokens, tokenInfo, nativeTokenPrice, feesUsd, stakedUnip, stakedUnipSupply, keeperCosts, ulpManager, ulpAum }
 }
 
 async function main() {
@@ -117,20 +117,20 @@ async function main() {
 
   const ethPrice = values.arbitrum.nativeTokenPrice
   const avaxPrice = values.avax.nativeTokenPrice
-  const gmxPrice = await getGmxPrice(ethPrice)
+  const unipPrice = await getUnipPrice(ethPrice)
 
   const data = [
     ["ETH Price", formatAmount(ethPrice, 30, 2)],
     ["AVAX Price", formatAmount(avaxPrice, 30, 2)],
-    ["GMX Price", formatAmount(gmxPrice, 30, 2)],
+    ["UNIP Price", formatAmount(unipPrice, 30, 2)],
     ["ARB Fees", formatAmount(values.arbitrum.feesUsd, 30, 2)],
     ["AVAX Fees", formatAmount(values.avax.feesUsd, 30, 2)],
-    ["ARB sbfGMX", formatAmount(values.arbitrum.stakedGmxSupply, 18, 2)],
-    ["AVAX sbfGMX", formatAmount(values.avax.stakedGmxSupply, 18, 2)],
+    ["ARB sbfUNIP", formatAmount(values.arbitrum.stakedUnipSupply, 18, 2)],
+    ["AVAX sbfUNIP", formatAmount(values.avax.stakedUnipSupply, 18, 2)],
     ["ARB Keeper Costs", formatAmount(values.arbitrum.keeperCosts, 18, 2)],
     ["AVAX Keeper Costs", formatAmount(values.avax.keeperCosts, 18, 2)],
-    ["GLP AUM (ARB)", formatAmount(values.arbitrum.glpAum, 30, 2)],
-    ["GLP AUM (AVAX)", formatAmount(values.avax.glpAum, 30, 2)],
+    ["ULP AUM (ARB)", formatAmount(values.arbitrum.ulpAum, 30, 2)],
+    ["ULP AUM (AVAX)", formatAmount(values.avax.ulpAum, 30, 2)],
   ]
 
   for (let i = 0; i < data.length; i++) {

@@ -5,7 +5,7 @@ const { expandDecimals, bigNumberify } = require("../../test/shared/utilities")
 
 const ethPrice = "1550"
 const avaxPrice = "18"
-const gmxPrice = "74"
+const unipPrice = "74"
 
 const shouldSendTxn = false
 
@@ -34,20 +34,20 @@ const { AddressZero } = ethers.constants
 
 async function getArbValues() {
   const batchSender = await contractAt("BatchSender", "0x1070f775e8eb466154BBa8FA0076C4Adc7FE17e8")
-  const esGmx = await contractAt("Token", "0xf42Ae1D54fd613C9bb14810b0588FaAa09a426cA")
+  const esUnip = await contractAt("Token", "0xf42Ae1D54fd613C9bb14810b0588FaAa09a426cA")
   const nativeTokenPrice = ethPrice
   const data = arbitrumData
 
-  return { batchSender, esGmx, nativeTokenPrice, data }
+  return { batchSender, esUnip, nativeTokenPrice, data }
 }
 
 async function getAvaxValues() {
   const batchSender = await contractAt("BatchSender", "0xF0f929162751DD723fBa5b86A9B3C88Dc1D4957b")
-  const esGmx = await contractAt("Token", "0xFf1489227BbAAC61a9209A08929E4c2a526DdD17")
+  const esUnip = await contractAt("Token", "0xFf1489227BbAAC61a9209A08929E4c2a526DdD17")
   const nativeTokenPrice = avaxPrice
   const data = avaxData
 
-  return { batchSender, esGmx, nativeTokenPrice, data }
+  return { batchSender, esUnip, nativeTokenPrice, data }
 }
 
 async function getValues() {
@@ -62,7 +62,7 @@ async function getValues() {
 
 async function main() {
   const wallet = { address: "0x5F799f365Fa8A2B60ac0429C48B153cA5a6f0Cf8" }
-  const { batchSender, esGmx, nativeTokenPrice, data } = await getValues()
+  const { batchSender, esUnip, nativeTokenPrice, data } = await getValues()
   const { nativeToken } = tokens
   const nativeTokenContract = await contractAt("Token", nativeToken.address)
 
@@ -81,16 +81,16 @@ async function main() {
   let totalDiscountAmount = bigNumberify(0)
   let totalDiscountUsd = bigNumberify(0)
   let allDiscountUsd = bigNumberify(0)
-  let totalEsGmxAmount = bigNumberify(0)
+  let totalEsUnipAmount = bigNumberify(0)
   const affiliateAccounts = []
   const affiliateAmounts = []
   const discountAccounts = []
   const discountAmounts = []
-  const esGmxAccounts = []
-  const esGmxAmounts = []
+  const esUnipAccounts = []
+  const esUnipAmounts = []
 
   for (let i = 0; i < affiliatesData.length; i++) {
-    const { account, rebateUsd, esgmxRewardsUsd } = affiliatesData[i]
+    const { account, rebateUsd, esunipRewardsUsd } = affiliatesData[i]
     allAffiliateUsd = allAffiliateUsd.add(rebateUsd)
 
     if (account === AddressZero) { continue }
@@ -101,11 +101,11 @@ async function main() {
     totalAffiliateAmount = totalAffiliateAmount.add(amount)
     totalAffiliateUsd = totalAffiliateUsd.add(rebateUsd)
 
-    if (esgmxRewardsUsd) {
-      const esGmxAmount = bigNumberify(esgmxRewardsUsd).mul(expandDecimals(1, 18)).div(expandDecimals(gmxPrice, 30))
-      esGmxAccounts.push(account)
-      esGmxAmounts.push(esGmxAmount)
-      totalEsGmxAmount = totalEsGmxAmount.add(esGmxAmount)
+    if (esunipRewardsUsd) {
+      const esUnipAmount = bigNumberify(esunipRewardsUsd).mul(expandDecimals(1, 18)).div(expandDecimals(unipPrice, 30))
+      esUnipAccounts.push(account)
+      esUnipAmounts.push(esUnipAmount)
+      totalEsUnipAmount = totalEsUnipAmount.add(esUnipAmount)
     }
   }
 
@@ -143,7 +143,7 @@ async function main() {
   console.log("all trader rebates (USD)", ethers.utils.formatUnits(allDiscountUsd, 30))
   console.log(`total ${nativeToken.name}`, ethers.utils.formatUnits(totalNativeAmount, 18))
   console.log(`total USD`, ethers.utils.formatUnits(totalAffiliateUsd.add(totalDiscountUsd), 30))
-  console.log(`total esGmx`, ethers.utils.formatUnits(totalEsGmxAmount, 18))
+  console.log(`total esUnip`, ethers.utils.formatUnits(totalEsUnipAmount, 18))
 
   const batchSize = 150
 
@@ -181,15 +181,15 @@ async function main() {
       await sendTxn(batchSender.sendAndEmit(nativeToken.address, accounts, amounts, traderDiscountsTypeId), "batchSender.sendAndEmit(nativeToken, trader rebates)")
     })
 
-    await sendTxn(esGmx.approve(batchSender.address, totalEsGmxAmount), "esGmx.approve")
+    await sendTxn(esUnip.approve(batchSender.address, totalEsUnipAmount), "esUnip.approve")
 
-    await processBatch([esGmxAccounts, esGmxAmounts], batchSize, async (currentBatch) => {
+    await processBatch([esUnipAccounts, esUnipAmounts], batchSize, async (currentBatch) => {
       printBatch(currentBatch)
 
       const accounts = currentBatch.map((item) => item[0])
       const amounts = currentBatch.map((item) => item[1])
 
-      await sendTxn(batchSender.sendAndEmit(esGmx.address, accounts, amounts, affiliateRewardsTypeId), "batchSender.sendAndEmit(nativeToken, esGmx affiliate rewards)")
+      await sendTxn(batchSender.sendAndEmit(esUnip.address, accounts, amounts, affiliateRewardsTypeId), "batchSender.sendAndEmit(nativeToken, esUnip affiliate rewards)")
     })
   }
 }

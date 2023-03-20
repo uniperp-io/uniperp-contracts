@@ -19,15 +19,15 @@ async function main() {
   const list = LIST
   const usdc = await contractAt("Token", "0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E", avaxWallet)
   const usdcDecimals = 6
-  const gmx = await contractAt("Token", "0xfc5A1A6EB076a2C7aD06eD22C90d7E710E35ad0a", arbWallet)
-  const gmxDecimals = 18
+  const unip = await contractAt("Token", "0xfc5A1A6EB076a2C7aD06eD22C90d7E710E35ad0a", arbWallet)
+  const unipDecimals = 18
   const shouldSendTxn = true
 
   const minCount = 0
   let count = 0
 
   let totalUsdc = bigNumberify(0)
-  let totalGmx = bigNumberify(0)
+  let totalUnip = bigNumberify(0)
 
   for (let i = 0; i < list.length; i++) {
     const item = list[i]
@@ -39,18 +39,18 @@ async function main() {
         await sendTxn(usdc.transfer(item.account, amount), `${count}: usdc.transfer(${item.account}, ${amount})`)
       }
     }
-    if (item.gmx && parseFloat(item.gmx) !== 0) {
+    if (item.unip && parseFloat(item.unip) !== 0) {
       count++
-      const amount = ethers.utils.parseUnits(item.gmx, gmxDecimals)
-      totalGmx = totalGmx.add(amount)
+      const amount = ethers.utils.parseUnits(item.unip, unipDecimals)
+      totalUnip = totalUnip.add(amount)
       if (shouldSendTxn && count >= minCount) {
-        await sendTxn(gmx.transfer(item.account, amount), `${count}: gmx.transfer(${item.account}, ${amount})`)
+        await sendTxn(unip.transfer(item.account, amount), `${count}: unip.transfer(${item.account}, ${amount})`)
       }
     }
   }
 
   console.log("total USDC", ethers.utils.formatUnits(totalUsdc, usdcDecimals))
-  console.log("total GMX", ethers.utils.formatUnits(totalGmx, gmxDecimals))
+  console.log("total UNIP", ethers.utils.formatUnits(totalUnip, unipDecimals))
 }
 
 main()

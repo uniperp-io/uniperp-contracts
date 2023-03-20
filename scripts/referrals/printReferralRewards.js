@@ -4,7 +4,7 @@ const { deployContract, contractAt, sendTxn, processBatch, getFrameSigner } = re
 const { expandDecimals, bigNumberify } = require("../../test/shared/utilities")
 
 const avaxPrice = "14"
-const gmxPrice = "43"
+const unipPrice = "43"
 
 const shouldSendTxn = false
 

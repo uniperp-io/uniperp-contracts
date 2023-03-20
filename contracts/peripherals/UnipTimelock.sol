@@ -3,7 +3,7 @@
 pragma solidity ^0.8.0;
 
 import "./interfaces/ITimelockTarget.sol";
-import "./interfaces/IGmxTimelock.sol";
+import "./interfaces/IUnipTimelock.sol";
 import "./interfaces/IHandlerTarget.sol";
 import "../access/interfaces/IAdmin.sol";
 import "../core/interfaces/IVault.sol";
@@ -19,7 +19,7 @@ import "../staking/interfaces/IVester.sol";
 import "../libraries/math/SafeMath.sol";
 import "../libraries/token/IERC20.sol";
 
-contract GmxTimelock is IGmxTimelock {
+contract UnipTimelock is IUnipTimelock {
     using SafeMath for uint256;
 
     uint256 public constant PRICE_PRECISION = 10 ** 30;
@@ -71,22 +71,22 @@ contract GmxTimelock is IGmxTimelock {
     event ClearAction(bytes32 action);
 
     modifier onlyAdmin() {
-        require(msg.sender == admin, "GmxTimelock: forbidden");
+        require(msg.sender == admin, "UnipTimelock: forbidden");
         _;
     }
 
     modifier onlyAdminOrHandler() {
-        require(msg.sender == admin || isHandler[msg.sender], "GmxTimelock: forbidden");
+        require(msg.sender == admin || isHandler[msg.sender], "UnipTimelock: forbidden");
         _;
     }
 
     modifier onlyTokenManager() {
-        require(msg.sender == tokenManager, "GmxTimelock: forbidden");
+        require(msg.sender == tokenManager, "UnipTimelock: forbidden");
         _;
     }
 
     modifier onlyRewardManager() {
-        require(msg.sender == rewardManager, "GmxTimelock: forbidden");
+        require(msg.sender == rewardManager, "UnipTimelock: forbidden");
         _;
     }
 
@@ -99,8 +99,8 @@ contract GmxTimelock is IGmxTimelock {
         address _mintReceiver,
         uint256 _maxTokenSupply
     ) public {
-        require(_buffer <= MAX_BUFFER, "GmxTimelock: invalid _buffer");
-        require(_longBuffer <= MAX_BUFFER, "GmxTimelock: invalid _longBuffer");
+        require(_buffer <= MAX_BUFFER, "UnipTimelock: invalid _buffer");
+        require(_longBuffer <= MAX_BUFFER, "UnipTimelock: invalid _longBuffer");
         admin = _admin;
         buffer = _buffer;
         longBuffer = _longBuffer;
@@ -115,7 +115,7 @@ contract GmxTimelock is IGmxTimelock {
     }
 
     function setExternalAdmin(address _target, address _admin) external onlyAdmin {
-        require(_target != address(this), "GmxTimelock: invalid _target");
+        require(_target != address(this), "UnipTimelock: invalid _target");
         IAdmin(_target).setAdmin(_admin);
     }
 
@@ -124,8 +124,8 @@ contract GmxTimelock is IGmxTimelock {
     }
 
     function setBuffer(uint256 _buffer) external onlyAdmin {
-        require(_buffer <= MAX_BUFFER, "GmxTimelock: invalid _buffer");
-        require(_buffer > buffer, "GmxTimelock: buffer cannot be decreased");
+        require(_buffer <= MAX_BUFFER, "UnipTimelock: invalid _buffer");
+        require(_buffer > buffer, "UnipTimelock: buffer cannot be decreased");
         buffer = _buffer;
     }
 
@@ -144,8 +144,8 @@ contract GmxTimelock is IGmxTimelock {
     }
 
     function setFundingRate(address _vaultUtils, uint256 _fundingInterval, uint256 _fundingRateFactor, uint256 _stableFundingRateFactor) external onlyAdmin {
-        require(_fundingRateFactor < MAX_FUNDING_RATE_FACTOR, "GmxTimelock: invalid _fundingRateFactor");
-        require(_stableFundingRateFactor < MAX_FUNDING_RATE_FACTOR, "GmxTimelock: invalid _stableFundingRateFactor");
+        require(_fundingRateFactor < MAX_FUNDING_RATE_FACTOR, "UnipTimelock: invalid _fundingRateFactor");
+        require(_stableFundingRateFactor < MAX_FUNDING_RATE_FACTOR, "UnipTimelock: invalid _stableFundingRateFactor");
         IVaultUtils(_vaultUtils).setFundingRate(_fundingInterval, _fundingRateFactor, _stableFundingRateFactor);
     }
 
@@ -161,13 +161,13 @@ contract GmxTimelock is IGmxTimelock {
         uint256 _minProfitTime,
         bool _hasDynamicFees
     ) external onlyAdmin {
-        require(_taxBasisPoints < MAX_FEE_BASIS_POINTS, "GmxTimelock: invalid _taxBasisPoints");
-        require(_stableTaxBasisPoints < MAX_FEE_BASIS_POINTS, "GmxTimelock: invalid _stableTaxBasisPoints");
-        require(_mintBurnFeeBasisPoints < MAX_FEE_BASIS_POINTS, "GmxTimelock: invalid _mintBurnFeeBasisPoints");
-        require(_swapFeeBasisPoints < MAX_FEE_BASIS_POINTS, "GmxTimelock: invalid _swapFeeBasisPoints");
-        require(_stableSwapFeeBasisPoints < MAX_FEE_BASIS_POINTS, "GmxTimelock: invalid _stableSwapFeeBasisPoints");
-        require(_marginFeeBasisPoints < MAX_FEE_BASIS_POINTS, "GmxTimelock: invalid _marginFeeBasisPoints");
-        require(_liquidationFeeUsd < 10 * PRICE_PRECISION, "GmxTimelock: invalid _liquidationFeeUsd");
+        require(_taxBasisPoints < MAX_FEE_BASIS_POINTS, "UnipTimelock: invalid _taxBasisPoints");
+        require(_stableTaxBasisPoints < MAX_FEE_BASIS_POINTS, "UnipTimelock: invalid _stableTaxBasisPoints");
+        require(_mintBurnFeeBasisPoints < MAX_FEE_BASIS_POINTS, "UnipTimelock: invalid _mintBurnFeeBasisPoints");
+        require(_swapFeeBasisPoints < MAX_FEE_BASIS_POINTS, "UnipTimelock: invalid _swapFeeBasisPoints");
+        require(_stableSwapFeeBasisPoints < MAX_FEE_BASIS_POINTS, "UnipTimelock: invalid _stableSwapFeeBasisPoints");
+        require(_marginFeeBasisPoints < MAX_FEE_BASIS_POINTS, "UnipTimelock: invalid _marginFeeBasisPoints");
+        require(_liquidationFeeUsd < 10 * PRICE_PRECISION, "UnipTimelock: invalid _liquidationFeeUsd");
 
         IVault(_vault).setFees(
             _taxBasisPoints,
@@ -191,10 +191,10 @@ contract GmxTimelock is IGmxTimelock {
         uint256 _bufferAmount,
         uint256 _usdgAmount
     ) external onlyAdmin {
-        require(_minProfitBps <= 500, "GmxTimelock: invalid _minProfitBps");
+        require(_minProfitBps <= 500, "UnipTimelock: invalid _minProfitBps");
 
         IVault vault = IVault(_vault);
-        require(vault.whitelistedTokens(_token), "GmxTimelock: token not yet whitelisted");
+        require(vault.whitelistedTokens(_token), "UnipTimelock: token not yet whitelisted");
 
         uint256 tokenDecimals = vault.tokenDecimals(_token);
         bool isStable = vault.stableTokens(_token);
@@ -298,7 +298,7 @@ contract GmxTimelock is IGmxTimelock {
     function setInPrivateTransferMode(address _token, bool _inPrivateTransferMode) external onlyAdmin {
         if (excludedTokens[_token]) {
             // excludedTokens can only have their transfers enabled
-            require(_inPrivateTransferMode == false, "GmxTimelock: invalid _inPrivateTransferMode");
+            require(_inPrivateTransferMode == false, "UnipTimelock: invalid _inPrivateTransferMode");
         }
 
         IBaseToken(_token).setInPrivateTransferMode(_inPrivateTransferMode);
@@ -555,7 +555,7 @@ contract GmxTimelock is IGmxTimelock {
         }
 
         mintable.mint(_receiver, _amount);
-        require(IERC20(_token).totalSupply() <= maxTokenSupply, "GmxTimelock: maxTokenSupply exceeded");
+        require(IERC20(_token).totalSupply() <= maxTokenSupply, "UnipTimelock: maxTokenSupply exceeded");
     }
 
     function _setPendingAction(bytes32 _action) private {
@@ -569,12 +569,12 @@ contract GmxTimelock is IGmxTimelock {
     }
 
     function _validateAction(bytes32 _action) private view {
-        require(pendingActions[_action] != 0, "GmxTimelock: action not signalled");
-        require(pendingActions[_action] < block.timestamp, "GmxTimelock: action time not yet passed");
+        require(pendingActions[_action] != 0, "UnipTimelock: action not signalled");
+        require(pendingActions[_action] < block.timestamp, "UnipTimelock: action time not yet passed");
     }
 
     function _clearAction(bytes32 _action) private {
-        require(pendingActions[_action] != 0, "GmxTimelock: invalid _action");
+        require(pendingActions[_action] != 0, "UnipTimelock: invalid _action");
         delete pendingActions[_action];
         emit ClearAction(_action);
     }

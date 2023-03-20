@@ -8,12 +8,12 @@ async function getArbValues(signer) {
 
   const rewardTrackerArr = [
     {
-      name: "feeGmxTracker",
+      name: "feeUnipTracker",
       address: "0xd2D1162512F927a7e282Ef43a362659E4F2a728F",
       transferAmount: "1539"
     },
     {
-      name: "feeGlpTracker",
+      name: "feeUlpTracker",
       address: "0x4e971a87900b931fF39d1Aad67697F49835400b6",
       transferAmount: "2905"
     }
@@ -28,12 +28,12 @@ async function getAvaxValues(signer) {
 
   const rewardTrackerArr = [
     {
-      name: "feeGmxTracker",
+      name: "feeUnipTracker",
       address: "0x4d268a7d4C16ceB5a606c173Bd974984343fea13",
       transferAmount: "8841"
     },
     {
-      name: "feeGlpTracker",
+      name: "feeUlpTracker",
       address: "0xd2D1162512F927a7e282Ef43a362659E4F2a728F",
       transferAmount: "79827"
     }
