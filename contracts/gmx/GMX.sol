@@ -5,10 +5,10 @@ pragma solidity ^0.8.0;
 import "../tokens/MintableBaseToken.sol";
 
 contract GMX is MintableBaseToken {
-    constructor() public MintableBaseToken("GMX", "GMX", 0) {
+    constructor() public MintableBaseToken("UNIP", "UNIP", 0) {
     }
 
     function id() external pure returns (string memory _name) {
-        return "GMX";
+        return "UNIP";
     }
 }
