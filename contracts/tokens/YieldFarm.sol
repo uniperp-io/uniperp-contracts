@@ -13,7 +13,7 @@ contract YieldFarm is YieldToken, ReentrancyGuard {
 
     address public stakingToken;
 
-    constructor(string memory _name, string memory _symbol, address _stakingToken) public YieldToken(_name, _symbol, 0) {
+    constructor(string memory _name, string memory _symbol, address _stakingToken) YieldToken(_name, _symbol, 0) {
         stakingToken = _stakingToken;
     }
 

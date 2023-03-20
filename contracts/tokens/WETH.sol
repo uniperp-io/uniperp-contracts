@@ -54,7 +54,7 @@ contract WETH is IERC20 {
         string memory name,
         string memory symbol,
         uint8 decimals
-    ) public {
+    ) {
         _name = name;
         _symbol = symbol;
         _decimals = decimals;

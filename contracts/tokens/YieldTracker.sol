@@ -33,7 +33,7 @@ contract YieldTracker is IYieldTracker, ReentrancyGuard {
         _;
     }
 
-    constructor(address _yieldToken) public {
+    constructor(address _yieldToken) {
         gov = msg.sender;
         yieldToken = _yieldToken;
     }

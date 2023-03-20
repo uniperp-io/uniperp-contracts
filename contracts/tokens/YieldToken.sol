@@ -42,7 +42,7 @@ contract YieldToken is IERC20, IYieldToken {
         _;
     }
 
-    constructor(string memory _name, string memory _symbol, uint256 _initialSupply) public {
+    constructor(string memory _name, string memory _symbol, uint256 _initialSupply) {
         name = _name;
         symbol = _symbol;
         gov = msg.sender;
