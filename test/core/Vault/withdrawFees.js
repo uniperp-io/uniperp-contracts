@@ -181,7 +181,7 @@ describe("Vault.withdrawFees", function () {
       5 * 24 * 60 * 60, // _buffer
       user0.address, // _tokenManager
       user1.address, // _mintReceiver
-      user2.address, // _glpManager
+      user2.address, // _ulpManager
       user3.address, // _rewardRouter
       expandDecimals(1000, 18), // _maxTokenSupply
       10, // marginFeeBasisPoints
@@ -262,7 +262,7 @@ describe("Vault.withdrawFees", function () {
       5 * 24 * 60 * 60, // _buffer
       user0.address, // _tokenManager
       user1.address, // _mintReceiver
-      user2.address, // _glpManager
+      user2.address, // _ulpManager
       user3.address, // _rewardRouter
       expandDecimals(1000, 18), // _maxTokenSupply
       10, // marginFeeBasisPoints
