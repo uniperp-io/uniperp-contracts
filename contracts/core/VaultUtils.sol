@@ -79,6 +79,13 @@ contract VaultUtils is IVaultUtils, Governable {
         isTradable[_token] = _isTradable;
     }
 
+    function isTradableBatch(address[] memory _tokens) external view returns (bool[] memory res) {
+        res = new bool[](_tokens.length);
+        for (uint256 i = 0; i < _tokens.length; i++) {
+            res[i] = isTradable[_tokens[i]];
+        }
+    }
+
     function validateTradablePair(address _token1, address _token2) public override view {
         require(isTradable[_token1] && isTradable[_token2], "notTradable");
     }
@@ -129,14 +136,16 @@ contract VaultUtils is IVaultUtils, Governable {
         require(!vault.syntheticTokens(_tokenOut), "swapSyn2");
     }
 
-    function validateIncreasePosition(address /* _account */, address /* _collateralToken */, address  _indexToken, uint256 /* _sizeDelta */, bool /* _isLong */) external override view {
+    function validateIncreasePosition(address /* _account */, address  _collateralToken, address  _indexToken, uint256 /* _sizeDelta */, bool /* _isLong */) external override view {
         // no additional validations
-        require(isTradable[_indexToken], "notTrade");
+        require(isTradable[_collateralToken], "notTrade1");
+        require(isTradable[_indexToken], "notTrade2");
     }
 
-    function validateDecreasePosition(address /* _account */, address /* _collateralToken */, address  _indexToken, uint256 /* _collateralDelta */, uint256 /* _sizeDelta */, bool /* _isLong */, address /* _receiver */) external override view {
+    function validateDecreasePosition(address /* _account */, address _collateralToken, address  _indexToken, uint256 /* _collateralDelta */, uint256 /* _sizeDelta */, bool /* _isLong */, address /* _receiver */) external override view {
         // no additional validations
-        require(isTradable[_indexToken], "notTrade");
+        require(isTradable[_collateralToken], "notTrade3");
+        require(isTradable[_indexToken], "notTrade4");
     }
 
     function getPosition(address _account, address _collateralToken, address _indexToken, bool _isLong) internal view returns (Position memory) {

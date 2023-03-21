@@ -9,6 +9,7 @@ interface IVaultUtils {
     function setMaxLeverage(uint256 _maxLeverage) external;
     function setMaxLeverages(address _token, uint256 _maxLeverage) external;
     function setIsTradable(address _token, bool _isTradable) external;
+    function isTradableBatch(address[] memory _tokens) external view returns (bool[] memory);
     function validateTradablePair(address _token1, address _token2) external view;
     function fundingInterval() external view returns (uint256);
     function fundingRateFactor() external view returns (uint256);
