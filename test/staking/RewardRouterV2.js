@@ -105,6 +105,8 @@ describe("RewardRouterV2", function () {
     await bnbPriceFeed.setLatestAnswer(toChainlinkPrice(300))
     await vault.setTokenConfig(...getBnbConfig(bnb, bnbPriceFeed))
 
+    await vault.setSyntheticStableToken(dai.address)
+
     await ulp.setInPrivateTransferMode(true)
     await ulp.setMinter(ulpManager.address, true)
     await ulpManager.setInPrivateMode(true)

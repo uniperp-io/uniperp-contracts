@@ -23,5 +23,6 @@ interface IShortsTracker {
         bool _isIncrease
     ) external;
     function setIsGlobalShortDataReady(bool value) external;
+    function getGlobalShortDelta(address _token, uint256 _price) external view returns (bool, uint256);
     function setInitData(address[] calldata _tokens, uint256[] calldata _averagePrices) external;
 }

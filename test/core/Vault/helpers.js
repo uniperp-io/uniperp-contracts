@@ -67,15 +67,23 @@ const errors = [
   "Vault: Synthetic _collateralToken should != _indexToken"
 ]
 
-async function initVaultErrors(vault) {
+async function initVaultErrors(vault, vaultUtils) {
   const vaultErrorController = await deployContract("VaultErrorController", [])
   await vault.setErrorController(vaultErrorController.address)
   await vaultErrorController.setErrors(vault.address, errors);
+
+  await vaultUtils.setErrorController(vaultErrorController.address)
+  await vaultErrorController.setErrorsForUtils(vaultUtils.address, errors);
+
   return vaultErrorController
 }
 
 async function initVaultUtils(vault) {
   const vaultUtils = await deployContract("VaultUtils", [vault.address])
+  await vaultUtils.initialize(600, // fundingRateFactor
+      600 // stableFundingRateFactor
+  )
+
   await vault.setVaultUtils(vaultUtils.address)
   return vaultUtils
 }
@@ -85,13 +93,11 @@ async function initVault(vault, router, usdg, priceFeed) {
     router.address, // router
     usdg.address, // usdg
     priceFeed.address, // priceFeed
-    toUsd(5), // liquidationFeeUsd
-    600, // fundingRateFactor
-    600 // stableFundingRateFactor
+    toUsd(5) // liquidationFeeUsd
   )
 
   const vaultUtils = await initVaultUtils(vault)
-  const vaultErrorController = await initVaultErrors(vault)
+  const vaultErrorController = await initVaultErrors(vault, vaultUtils)
 
   return { vault, vaultUtils, vaultErrorController }
 }
@@ -114,7 +120,8 @@ function getBnbConfig(bnb, bnbPriceFeed) {
     75, // _minProfitBps,
     0, // _maxUsdgAmount
     false, // _isStable
-    true // _isShortable
+    true, // _isShortable
+    false // _isSynthetic
   ]
 }
 
@@ -126,7 +133,8 @@ function getEthConfig(eth, ethPriceFeed) {
     75, // _minProfitBps
     0, // _maxUsdgAmount
     false, // _isStable
-    true // _isShortable
+    true, // _isShortable
+    false // _isSynthetic
   ]
 }
 
@@ -138,7 +146,8 @@ function getBtcConfig(btc, btcPriceFeed) {
     75, // _minProfitBps
     0, // _maxUsdgAmount
     false, // _isStable
-    true // _isShortable
+    true, // _isShortable
+    false // _isSynthetic
   ]
 }
 
@@ -150,7 +159,8 @@ function getDaiConfig(dai, daiPriceFeed) {
     75, // _minProfitBps
     0, // _maxUsdgAmount
     true, // _isStable
-    false // _isShortable
+    false, // _isShortable
+    false // _isSynthetic
   ]
 }
 

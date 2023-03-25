@@ -67,6 +67,7 @@ describe("UnipTimelock", function () {
       expandDecimals(1000, 18)
     ])
     await vault.setGov(timelock.address)
+    await vaultUtils.setGov(timelock.address)
 
     await vaultPriceFeed.setTokenConfig(bnb.address, bnbPriceFeed.address, 8, false)
     await vaultPriceFeed.setTokenConfig(dai.address, daiPriceFeed.address, 8, false)
@@ -85,7 +86,6 @@ describe("UnipTimelock", function () {
     expect(await vault.router()).eq(router.address)
     expect(await vault.usdg()).eq(usdg.address)
     expect(await vault.liquidationFeeUsd()).eq(toUsd(5))
-    expect(await vault.fundingRateFactor()).eq(600)
 
     expect(await timelock.admin()).eq(wallet.address)
     expect(await timelock.buffer()).eq(5 * 24 * 60 * 60)
@@ -149,7 +149,8 @@ describe("UnipTimelock", function () {
       300, // _minProfitBps
       5000, // _maxUsdgAmount
       false, // _isStable
-      true // isShortable
+      true, // isShortable
+      false // isSynthetic
     )
 
     await increaseTime(provider, 5 * 24 * 60 *60)
@@ -163,7 +164,8 @@ describe("UnipTimelock", function () {
       300, // _minProfitBps
       5000, // _maxUsdgAmount
       false, // _isStable
-      true // isShortable
+      true, // isShortable
+      false // isSynthetic
     )
 
     expect(await vault.whitelistedTokenCount()).eq(1)
@@ -317,33 +319,33 @@ describe("UnipTimelock", function () {
   })
 
   it("setMaxLeverage", async () => {
-    await expect(timelock.connect(user0).setMaxLeverage(vault.address, 100 * 10000))
+    await expect(timelock.connect(user0).setMaxLeverage(vaultUtils.address, 100 * 10000))
       .to.be.revertedWith("UnipTimelock: forbidden")
 
-    await expect(timelock.connect(wallet).setMaxLeverage(vault.address, 49 * 10000))
-      .to.be.revertedWith("UnipTimelock: invalid _maxLeverage")
+    await expect(timelock.connect(wallet).setMaxLeverage(vaultUtils.address, 49 * 10000))
+      .to.be.revertedWith("Timelock: invalid _maxLeverage")
 
-    expect(await vault.maxLeverage()).eq(50 * 10000)
-    await timelock.connect(wallet).setMaxLeverage(vault.address, 100 * 10000)
-    expect(await vault.maxLeverage()).eq(100 * 10000)
+    expect(await vaultUtils.maxLeverage()).eq(50 * 10000)
+    await timelock.connect(wallet).setMaxLeverage(vaultUtils.address, 100 * 10000)
+    expect(await vaultUtils.maxLeverage()).eq(100 * 10000)
   })
 
   it("setFundingRate", async () => {
-    await expect(timelock.connect(user0).setFundingRate(vault.address, 59 * 60, 100, 100))
+    await expect(timelock.connect(user0).setFundingRate(vaultUtils.address, 59 * 60, 100, 100))
       .to.be.revertedWith("UnipTimelock: forbidden")
 
-    await expect(timelock.connect(wallet).setFundingRate(vault.address, 59 * 60, 100, 100))
+    await expect(timelock.connect(wallet).setFundingRate(vaultUtils.address, 59 * 60, 100, 100))
       .to.be.revertedWith("Vault: invalid _fundingInterval")
 
-    expect(await vault.fundingRateFactor()).eq(600)
-    expect(await vault.stableFundingRateFactor()).eq(600)
-    await timelock.connect(wallet).setFundingRate(vault.address, 60 * 60, 0, 100)
-    expect(await vault.fundingRateFactor()).eq(0)
-    expect(await vault.stableFundingRateFactor()).eq(100)
+    expect(await vaultUtils.fundingRateFactor()).eq(600)
+    expect(await vaultUtils.stableFundingRateFactor()).eq(600)
+    await timelock.connect(wallet).setFundingRate(vaultUtils.address, 60 * 60, 0, 100)
+    expect(await vaultUtils.fundingRateFactor()).eq(0)
+    expect(await vaultUtils.stableFundingRateFactor()).eq(100)
 
-    await timelock.connect(wallet).setFundingRate(vault.address, 60 * 60, 100, 0)
-    expect(await vault.fundingRateFactor()).eq(100)
-    expect(await vault.stableFundingRateFactor()).eq(0)
+    await timelock.connect(wallet).setFundingRate(vaultUtils.address, 60 * 60, 100, 0)
+    expect(await vaultUtils.fundingRateFactor()).eq(100)
+    expect(await vaultUtils.stableFundingRateFactor()).eq(0)
   })
 
   it("transferIn", async () => {
@@ -680,7 +682,8 @@ describe("UnipTimelock", function () {
       120, // _minProfitBps
       5000, // _maxUsdgAmount
       true, // _isStable
-      false // isShortable
+      false, // isShortable
+      false //isSynthetic
     )).to.be.revertedWith("UnipTimelock: forbidden")
 
     await expect(timelock.connect(wallet).vaultSetTokenConfig(
@@ -691,7 +694,8 @@ describe("UnipTimelock", function () {
       120, // _minProfitBps
       5000, // _maxUsdgAmount
       true, // _isStable
-      false // isShortable
+      false, // isShortable
+      false //isSynthetic
     )).to.be.revertedWith("UnipTimelock: action not signalled")
 
     await expect(timelock.connect(user0).signalVaultSetTokenConfig(
@@ -702,7 +706,8 @@ describe("UnipTimelock", function () {
       120, // _minProfitBps
       5000, // _maxUsdgAmount
       true, // _isStable
-      false // isShortable
+      false, // isShortable
+      false //isSynthetic
     )).to.be.revertedWith("UnipTimelock: forbidden")
 
     await timelock.connect(wallet).signalVaultSetTokenConfig(
@@ -713,7 +718,8 @@ describe("UnipTimelock", function () {
       120, // _minProfitBps
       5000, // _maxUsdgAmount
       true, // _isStable
-      false // isShortable
+      false, // isShortable
+      false //isSynthetic
     )
 
     await expect(timelock.connect(wallet).vaultSetTokenConfig(
@@ -724,7 +730,8 @@ describe("UnipTimelock", function () {
       120, // _minProfitBps
       5000, // _maxUsdgAmount
       true, // _isStable
-      false // isShortable
+      false, // isShortable
+      false //isSynthetic
     )).to.be.revertedWith("UnipTimelock: action time not yet passed")
 
     await increaseTime(provider, 4 * 24 * 60 * 60)
@@ -738,7 +745,8 @@ describe("UnipTimelock", function () {
       120, // _minProfitBps
       5000, // _maxUsdgAmount
       true, // _isStable
-      false // isShortable
+      false, // isShortable
+      false //isSynthetic
     )).to.be.revertedWith("UnipTimelock: action time not yet passed")
 
     await increaseTime(provider, 1 * 24 * 60 * 60 + 10)
@@ -752,7 +760,8 @@ describe("UnipTimelock", function () {
       120, // _minProfitBps
       5000, // _maxUsdgAmount
       true, // _isStable
-      false // isShortable
+      false, // isShortable
+      false //isSynthetic
     )).to.be.revertedWith("UnipTimelock: action not signalled")
 
     expect(await vault.totalTokenWeights()).eq(0)
@@ -772,7 +781,8 @@ describe("UnipTimelock", function () {
       120, // _minProfitBps
       5000, // _maxUsdgAmount
       true, // _isStable
-      false // isShortable
+      false, // isShortable
+      false //isSynthetic
     )
 
     expect(await vault.totalTokenWeights()).eq(7000)
@@ -1105,7 +1115,8 @@ describe("UnipTimelock", function () {
       300, // _minProfitBps
       expandDecimals(5000, 18), // _maxUsdgAmount
       false, // _isStable
-      true // isShortable
+      true, // isShortable
+      false // isSynthetic
     )
 
     await increaseTime(provider, 7 * 24 * 60 * 60 + 10)
@@ -1119,7 +1130,8 @@ describe("UnipTimelock", function () {
       300, // _minProfitBps
       expandDecimals(5000, 18), // _maxUsdgAmount
       false, // _isStable
-      true // isShortable
+      true, // isShortable
+      false // isSynthetic
     )
 
     await bnb.mint(vault.address, expandDecimals(3, 18))

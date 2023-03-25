@@ -12,6 +12,7 @@ describe("Vault.depositCollateral", function () {
   const provider = waffle.provider
   const [wallet, user0, user1, user2, user3] = provider.getWallets()
   let vault
+  let vaultUtils
   let vaultPriceFeed
   let usdg
   let router
@@ -42,7 +43,9 @@ describe("Vault.depositCollateral", function () {
     router = await deployContract("Router", [vault.address, usdg.address, bnb.address])
     vaultPriceFeed = await deployContract("VaultPriceFeed", [])
 
-    const initVaultResult = await initVault(vault, router, usdg, vaultPriceFeed)
+    const xxRes = await initVault(vault, router, usdg, vaultPriceFeed)
+    vault = xxRes.vault
+    vaultUtils = xxRes.vaultUtils
 
     distributor0 = await deployContract("TimeDistributor", [])
     yieldTracker0 = await deployContract("YieldTracker", [usdg.address])
@@ -57,11 +60,19 @@ describe("Vault.depositCollateral", function () {
     await vaultPriceFeed.setTokenConfig(btc.address, btcPriceFeed.address, 8, false)
     await vaultPriceFeed.setTokenConfig(dai.address, daiPriceFeed.address, 8, false)
 
+    await vault.setSyntheticStableToken(dai.address)
+    await vaultUtils.setIsTradable(bnb.address, true)
+    await vaultUtils.setIsTradable(btc.address, true)
+    await vaultUtils.setIsTradable(dai.address, true)
+
     ulp = await deployContract("ULP", [])
     ulpManager = await deployContract("UlpManager", [vault.address, usdg.address, ulp.address, ethers.constants.AddressZero, 24 * 60 * 60])
   })
 
   it("deposit collateral", async () => {
+    await daiPriceFeed.setLatestAnswer(toChainlinkPrice(1))
+    await vault.setTokenConfig(...getDaiConfig(dai, daiPriceFeed))
+    
     await btcPriceFeed.setLatestAnswer(toChainlinkPrice(60000))
     await vault.setTokenConfig(...getBtcConfig(btc, btcPriceFeed))
 
@@ -83,9 +94,9 @@ describe("Vault.depositCollateral", function () {
     expect(await vault.usdgAmounts(btc.address)).eq(0)
     expect(await vault.poolAmounts(btc.address)).eq(0)
 
-    expect(await vault.getRedemptionCollateralUsd(btc.address)).eq(0)
+    expect(await vaultUtils.getRedemptionCollateralUsd(btc.address)).eq(0)
     await vault.buyUSDG(btc.address, user1.address)
-    expect(await vault.getRedemptionCollateralUsd(btc.address)).eq(toUsd("46.8584"))
+    expect(await vaultUtils.getRedemptionCollateralUsd(btc.address)).eq(toUsd("46.8584"))
 
     expect(await vault.feeReserves(btc.address)).eq(353) // (117500 - 1) * 0.3% => 353
     expect(await vault.usdgAmounts(btc.address)).eq("46858400000000000000") // (117500 - 1 - 353) * 40000
@@ -97,7 +108,7 @@ describe("Vault.depositCollateral", function () {
 
     await vault.buyUSDG(btc.address, user1.address)
 
-    expect(await vault.getRedemptionCollateralUsd(btc.address)).eq(toUsd("93.7168"))
+    expect(await vaultUtils.getRedemptionCollateralUsd(btc.address)).eq(toUsd("93.7168"))
 
     expect(await vault.feeReserves(btc.address)).eq(353 * 2) // (117500 - 1) * 0.3% * 2
     expect(await vault.usdgAmounts(btc.address)).eq("93716800000000000000") // (117500 - 1 - 353) * 40000 * 2
@@ -130,7 +141,7 @@ describe("Vault.depositCollateral", function () {
     expect(await vault.poolAmounts(btc.address)).eq(256792 - 114)
     expect(await vault.reservedAmounts(btc.address)).eq(117500)
     expect(await vault.guaranteedUsd(btc.address)).eq(toUsd(38.047))
-    expect(await vault.getRedemptionCollateralUsd(btc.address)).eq(toUsd(92.79)) // (256792 - 117500) sats * 40000 => 51.7968, 47 / 40000 * 41000 => ~45.8536
+    expect(await vaultUtils.getRedemptionCollateralUsd(btc.address)).eq(toUsd(92.79)) // (256792 - 117500) sats * 40000 => 51.7968, 47 / 40000 * 41000 => ~45.8536
 
     position = await vault.getPosition(user0.address, btc.address, btc.address, true)
     expect(position[0]).eq(toUsd(47)) // size

@@ -508,7 +508,7 @@ describe("Vester", function () {
     await esUnip.mint(stakedUnipDistributor.address, expandDecimals(50000 * 12, 18))
     await stakedUnipDistributor.setTokensPerInterval("20667989410000000") // 0.02066798941 esUnip per second
 
-    const rewardRouter = await deployContract("RewardRouter", [])
+    const rewardRouter = await deployContract("RewardRouterV2", [])
     await rewardRouter.initialize(
       eth.address,
       unip.address,
@@ -518,6 +518,8 @@ describe("Vester", function () {
       stakedUnipTracker.address,
       bonusUnipTracker.address,
       feeUnipTracker.address,
+      AddressZero,
+      AddressZero,
       AddressZero,
       AddressZero,
       AddressZero
@@ -725,7 +727,7 @@ describe("Vester", function () {
     await esUnip.mint(stakedUnipDistributor.address, expandDecimals(50000 * 12, 18))
     await stakedUnipDistributor.setTokensPerInterval("20667989410000000") // 0.02066798941 esUnip per second
 
-    const rewardRouter = await deployContract("RewardRouter", [])
+    const rewardRouter = await deployContract("RewardRouterV2", [])
     await rewardRouter.initialize(
       eth.address,
       unip.address,
@@ -735,6 +737,8 @@ describe("Vester", function () {
       stakedUnipTracker.address,
       bonusUnipTracker.address,
       feeUnipTracker.address,
+      AddressZero,
+      AddressZero,
       AddressZero,
       AddressZero,
       AddressZero

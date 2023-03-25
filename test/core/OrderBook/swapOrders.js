@@ -13,6 +13,8 @@ const {
     defaultCreateSwapOrderFactory,
     getTriggerRatio
 } = require('./helpers');
+const { deployFixture } = require("../../../utils/fixture")
+const { prepareOracleParam, getOracleBlock, getSigners } = require("../../shared/prepareOracleParams")
 
 use(solidity);
 
@@ -26,6 +28,7 @@ describe("OrderBook, swap orders", function () {
     const provider = waffle.provider
     const [wallet, user0, user1, user2, user3] = provider.getWallets()
 
+    let vaultUtils;
     let orderBook;
     let defaults;
     let defaultCreateSwapOrder;
@@ -52,7 +55,9 @@ describe("OrderBook, swap orders", function () {
         router = await deployContract("Router", [vault.address, usdg.address, bnb.address])
         vaultPriceFeed = await deployContract("VaultPriceFeed", [])
 
-        await initVault(vault, router, usdg, vaultPriceFeed)
+        const xxRes = await initVault(vault, router, usdg, vaultPriceFeed)
+        vault = xxRes.vault
+        vaultUtils = xxRes.vaultUtils
 
         distributor0 = await deployContract("TimeDistributor", [])
         yieldTracker0 = await deployContract("YieldTracker", [usdg.address])
@@ -71,6 +76,12 @@ describe("OrderBook, swap orders", function () {
         await vaultPriceFeed.setTokenConfig(dai.address, daiPriceFeed.address, 8, false)
         await vaultPriceFeed.setPriceSampleSpace(1);
 
+        await vault.setSyntheticStableToken(dai.address)
+        await vaultUtils.setIsTradable(bnb.address, true)
+        await vaultUtils.setIsTradable(btc.address, true)
+        await vaultUtils.setIsTradable(eth.address, true)
+        await vaultUtils.setIsTradable(dai.address, true)
+
         tokenDecimals = {
             [bnb.address]: 18,
             [dai.address]: 18,
@@ -87,6 +98,23 @@ describe("OrderBook, swap orders", function () {
         await bnbPriceFeed.setLatestAnswer(toChainlinkPrice(BNB_PRICE))
         await vault.setTokenConfig(...getBnbConfig(bnb, bnbPriceFeed))
 
+        oracle = await deployContract("Oracle", [])
+        oracleStore = await deployContract("OracleStore", [])
+        await oracle.setOracleStore(oracleStore.address)
+        await oracle.setPositionManager(wallet.address, true)
+        await oracle.setPositionManager(user0.address, true)
+        await oracle.setPositionManager(user1.address, true)
+
+        const fixture = await deployFixture();
+        //const { oracleSalt, signerIndexes } = fixture.props;
+        const oracleSigners = await getSigners(fixture)
+        for (let i = 0; i < oracleSigners.length; i++) {
+          const tmpSigner = oracleSigners[i]
+          //console.log(tmpSigner.address)
+          await oracleStore.addSigner(tmpSigner.address)
+        }
+        await oracle.setPriceFeed(vaultPriceFeed.address)
+
         orderBook = await deployContract("OrderBook", [])
         const minExecutionFee = 500000;
         await orderBook.initialize(
@@ -97,9 +125,13 @@ describe("OrderBook, swap orders", function () {
             minExecutionFee,
             expandDecimals(5, 30) // minPurchseTokenAmountUsd
         );
+        await orderBook.setPositionManager(wallet.address, true)
+        await orderBook.setPositionManager(user0.address, true)
+        await orderBook.setPositionManager(user1.address, true)
 
         await router.addPlugin(orderBook.address);
         await router.connect(user0).approvePlugin(orderBook.address);
+        await vault.setOrderBook(orderBook.address)
 
         await btc.mint(user0.address, expandDecimals(1000, 8))
         await btc.connect(user0).approve(router.address, expandDecimals(100, 8))
@@ -502,21 +534,39 @@ describe("OrderBook, swap orders", function () {
             value
         });
 
-        await expect(orderBook.executeSwapOrder(defaults.user.address, 2, user1.address), "non-existent order")
+        await expect(orderBook.executeSwapOrder(defaults.user.address, 2, user1.address, oracle.address), "non-existent order")
             .to.be.revertedWith("OrderBook: non-existent order");
 
         bnbPriceFeed.setLatestAnswer(toChainlinkPrice(BNB_PRICE - 30));
-        await expect(orderBook.executeSwapOrder(defaults.user.address, 0, user1.address), "insufficient amountOut")
+
+        let feedTokens = [btc.address, bnb.address];
+        let precisions = [26, 26];
+        let minPrices = [Math.trunc(BTC_PRICE *10**4), Math.trunc((BNB_PRICE - 30) *10**4)];
+        let maxPrices = [Math.trunc(BTC_PRICE *10**4), Math.trunc((BNB_PRICE - 30) *10**4)];
+        let priceFeedTokens = [];
+        let oracleParam = await prepareOracleParam(feedTokens, precisions, minPrices, maxPrices, priceFeedTokens, await getOracleBlock(provider))
+        expect(oracleParam).to.not.be.null;
+        await oracle.setPrices(oracleParam)
+
+        await expect(orderBook.executeSwapOrder(defaults.user.address, 0, user1.address, oracle.address), "insufficient amountOut")
             .to.be.revertedWith("OrderBook: insufficient amountOut");
+        await oracle.clearAllPrices();
 
         bnbPriceFeed.setLatestAnswer(toChainlinkPrice(BNB_PRICE - 70));
+
+        minPrices = [Math.trunc(BTC_PRICE *10**4), Math.trunc((BNB_PRICE - 70) *10**4)];
+        maxPrices = [Math.trunc(BTC_PRICE *10**4), Math.trunc((BNB_PRICE - 70) *10**4)];
+        oracleParam = await prepareOracleParam(feedTokens, precisions, minPrices, maxPrices, priceFeedTokens, await getOracleBlock(provider))
+        expect(oracleParam).to.not.be.null;
+        await oracle.setPrices(oracleParam)
 
         const executor = user1;
         const executorBalanceBefore = await executor.getBalance();
         const userBalanceBefore = await defaults.user.getBalance();
 
-        const tx = await orderBook.executeSwapOrder(defaults.user.address, 0, executor.address);
+        const tx = await orderBook.executeSwapOrder(defaults.user.address, 0, executor.address, oracle.address);
         reportGasUsed(provider, tx, 'executeSwapOrder');
+        await oracle.clearAllPrices();
 
         const executorBalanceAfter = await executor.getBalance();
         expect(executorBalanceAfter, 'executorBalanceAfter').to.be.equal(executorBalanceBefore.add(defaults.executionFee));
@@ -552,8 +602,18 @@ describe("OrderBook, swap orders", function () {
         const executorBalanceBefore = await executor.getBalance();
         const userWbnbBalanceBefore = await bnb.balanceOf(defaults.user.address);
 
-        const tx = await orderBook.executeSwapOrder(defaults.user.address, 0, executor.address);
+        let feedTokens = [dai.address, bnb.address];
+        let precisions = [26, 26];
+        let minPrices = [Math.trunc(1 *10**4), Math.trunc(BNB_PRICE *10**4)];
+        let maxPrices = [Math.trunc(1 *10**4), Math.trunc(BNB_PRICE *10**4)];
+        let priceFeedTokens = [];
+        let oracleParam = await prepareOracleParam(feedTokens, precisions, minPrices, maxPrices, priceFeedTokens, await getOracleBlock(provider))
+        expect(oracleParam).to.not.be.null;
+        await oracle.setPrices(oracleParam)
+
+        const tx = await orderBook.executeSwapOrder(defaults.user.address, 0, executor.address, oracle.address);
         reportGasUsed(provider, tx, 'executeSwapOrder');
+        await oracle.clearAllPrices();
 
         const executorBalanceAfter = await executor.getBalance();
         expect(executorBalanceAfter, 'executorBalanceAfter').to.be.equal(executorBalanceBefore.add(defaults.executionFee));
@@ -592,20 +652,44 @@ describe("OrderBook, swap orders", function () {
 
         const executor = user1;
 
-        await expect(orderBook.executeSwapOrder(defaults.user.address, 2, executor.address))
+        let feedTokens = [btc.address, bnb.address];
+        let precisions = [26, 26];
+        let minPrices = [Math.trunc(BTC_PRICE *10**4), Math.trunc(BNB_PRICE *10**4)];
+        let maxPrices = [Math.trunc(BTC_PRICE *10**4), Math.trunc(BNB_PRICE *10**4)];
+        let priceFeedTokens = [];
+        let oracleParam = await prepareOracleParam(feedTokens, precisions, minPrices, maxPrices, priceFeedTokens, await getOracleBlock(provider))
+        expect(oracleParam).to.not.be.null;
+        await oracle.setPrices(oracleParam)
+
+        await expect(orderBook.executeSwapOrder(defaults.user.address, 2, executor.address, oracle.address))
             .to.be.revertedWith("OrderBook: non-existent order");
+        await oracle.clearAllPrices();
 
         btcPriceFeed.setLatestAnswer(toChainlinkPrice(60500));
-        await expect(orderBook.executeSwapOrder(defaults.user.address, 0, executor.address))
+        minPrices = [Math.trunc(60500 *10**4), Math.trunc(BNB_PRICE *10**4)];
+        maxPrices = [Math.trunc(60500 *10**4), Math.trunc(BNB_PRICE *10**4)];
+        oracleParam = await prepareOracleParam(feedTokens, precisions, minPrices, maxPrices, priceFeedTokens, await getOracleBlock(provider))
+        expect(oracleParam).to.not.be.null;
+        await oracle.setPrices(oracleParam)
+
+        await expect(orderBook.executeSwapOrder(defaults.user.address, 0, executor.address, oracle.address))
             .to.be.revertedWith("OrderBook: invalid price for execution");
+        await oracle.clearAllPrices();
 
         btcPriceFeed.setLatestAnswer(toChainlinkPrice(62500));
 
         const executorBalanceBefore = await executor.getBalance();
         const userBtcBalanceBefore = await btc.balanceOf(defaults.user.address);
 
-        const tx = await orderBook.executeSwapOrder(defaults.user.address, 0, executor.address);
+        minPrices = [Math.trunc(62500 *10**4), Math.trunc(BNB_PRICE *10**4)];
+        maxPrices = [Math.trunc(62500 *10**4), Math.trunc(BNB_PRICE *10**4)];
+        oracleParam = await prepareOracleParam(feedTokens, precisions, minPrices, maxPrices, priceFeedTokens, await getOracleBlock(provider))
+        expect(oracleParam).to.not.be.null;
+        await oracle.setPrices(oracleParam)
+
+        const tx = await orderBook.executeSwapOrder(defaults.user.address, 0, executor.address, oracle.address);
         reportGasUsed(provider, tx, 'executeSwapOrder');
+        await oracle.clearAllPrices();
 
         const executorBalanceAfter = await user1.getBalance();
         expect(executorBalanceAfter, 'executorBalanceAfter').to.be.equal(executorBalanceBefore.add(defaults.executionFee));
@@ -644,246 +728,49 @@ describe("OrderBook, swap orders", function () {
 
         const executor = user1;
 
-        await expect(orderBook.executeSwapOrder(defaults.user.address, 2, executor.address))
+        let feedTokens = [dai.address, btc.address, bnb.address];
+        let precisions = [26, 26, 26];
+        let minPrices = [Math.trunc(1 *10**4), Math.trunc(BTC_PRICE *10**4), Math.trunc(BNB_PRICE *10**4)];
+        let maxPrices = [Math.trunc(1 *10**4), Math.trunc(BTC_PRICE *10**4), Math.trunc(BNB_PRICE *10**4)];
+        let priceFeedTokens = [];
+        let oracleParam = await prepareOracleParam(feedTokens, precisions, minPrices, maxPrices, priceFeedTokens, await getOracleBlock(provider))
+        expect(oracleParam).to.not.be.null;
+        await oracle.setPrices(oracleParam)
+
+        await expect(orderBook.executeSwapOrder(defaults.user.address, 2, executor.address, oracle.address))
             .to.be.revertedWith("OrderBook: non-existent order");
+        await oracle.clearAllPrices();
 
         btcPriceFeed.setLatestAnswer(toChainlinkPrice(60500));
-        await expect(orderBook.executeSwapOrder(defaults.user.address, 0, executor.address))
+        minPrices = [Math.trunc(1 *10**4), Math.trunc(60500 *10**4), Math.trunc(BNB_PRICE *10**4)];
+        maxPrices = [Math.trunc(1 *10**4), Math.trunc(60500 *10**4), Math.trunc(BNB_PRICE *10**4)];
+        oracleParam = await prepareOracleParam(feedTokens, precisions, minPrices, maxPrices, priceFeedTokens, await getOracleBlock(provider))
+        expect(oracleParam).to.not.be.null;
+        await oracle.setPrices(oracleParam)
+
+        await expect(orderBook.executeSwapOrder(defaults.user.address, 0, executor.address, oracle.address))
             .to.be.revertedWith("OrderBook: invalid price for execution");
+        await oracle.clearAllPrices();
 
         btcPriceFeed.setLatestAnswer(toChainlinkPrice(62500));
 
         const executorBalanceBefore = await executor.getBalance();
         const userBtcBalanceBefore = await btc.balanceOf(defaults.user.address);
 
-        const tx = await orderBook.executeSwapOrder(defaults.user.address, 0, executor.address);
+        minPrices = [Math.trunc(1 *10**4), Math.trunc(62500 *10**4), Math.trunc(BNB_PRICE *10**4)];
+        maxPrices = [Math.trunc(1 *10**4), Math.trunc(62500 *10**4), Math.trunc(BNB_PRICE *10**4)];
+        oracleParam = await prepareOracleParam(feedTokens, precisions, minPrices, maxPrices, priceFeedTokens, await getOracleBlock(provider))
+        expect(oracleParam).to.not.be.null;
+        await oracle.setPrices(oracleParam)
+        const tx = await orderBook.executeSwapOrder(defaults.user.address, 0, executor.address, oracle.address);
         reportGasUsed(provider, tx, 'executeSwapOrder');
+        await oracle.clearAllPrices();
 
         const executorBalanceAfter = await user1.getBalance();
         expect(executorBalanceAfter, 'executorBalanceAfter').to.be.equal(executorBalanceBefore.add(defaults.executionFee));
 
         const userBtcBalanceAfter = await btc.balanceOf(defaults.user.address);
         expect(userBtcBalanceAfter.gt(userBtcBalanceBefore.add(minOut)), 'userBtcBalanceAfter').to.be.true;
-
-        const order = await getCreatedSwapOrder(defaults.user.address, 0);
-        expect(order.account).to.be.equal(ZERO_ADDRESS);
-    });
-
-    it("executeSwapOrder, triggerAboveThreshold == true, USDG -> BTC", async () => {
-        const triggerRatio = getTriggerRatio(toUsd(1), toUsd(62000));
-        const amountIn = expandDecimals(1000, 18);
-        const path = [usdg.address, btc.address];
-        const value = defaults.executionFee;
-
-        // minOut is not mandatory for such orders but with minOut it's possible to limit max price
-        // e.g. user would not be happy if he sets order "buy if BTC > $65000" and order executes with $75000
-        const minOut = await getMinOut(
-            tokenDecimals, 
-            getTriggerRatio(toUsd(1), toUsd(63000)),
-            path,
-            amountIn
-        );
-
-        await defaultCreateSwapOrder({
-            path,
-            minOut,
-            triggerRatio,
-            triggerAboveThreshold: true,
-            amountIn,
-            value
-        });
-
-        const executor = user1;
-
-        await expect(orderBook.executeSwapOrder(defaults.user.address, 2, executor.address))
-            .to.be.revertedWith("OrderBook: non-existent order");
-
-        btcPriceFeed.setLatestAnswer(toChainlinkPrice(60500));
-        await expect(orderBook.executeSwapOrder(defaults.user.address, 0, executor.address))
-            .to.be.revertedWith("OrderBook: invalid price for execution");
-
-        btcPriceFeed.setLatestAnswer(toChainlinkPrice(70000));
-        await expect(orderBook.executeSwapOrder(defaults.user.address, 0, executor.address))
-            .to.be.revertedWith("OrderBook: insufficient amountOut");
-
-        btcPriceFeed.setLatestAnswer(toChainlinkPrice(62500));
-
-        const executorBalanceBefore = await executor.getBalance();
-        const userBtcBalanceBefore = await btc.balanceOf(defaults.user.address);
-
-        const tx = await orderBook.executeSwapOrder(defaults.user.address, 0, executor.address);
-        reportGasUsed(provider, tx, 'executeSwapOrder');
-
-        const executorBalanceAfter = await user1.getBalance();
-        expect(executorBalanceAfter, 'executorBalanceAfter').to.be.equal(executorBalanceBefore.add(defaults.executionFee));
-
-        const userBtcBalanceAfter = await btc.balanceOf(defaults.user.address);
-        expect(userBtcBalanceAfter.gt(userBtcBalanceBefore.add(minOut)), 'userBtcBalanceAfter').to.be.true;
-
-        const order = await getCreatedSwapOrder(defaults.user.address, 0);
-        expect(order.account).to.be.equal(ZERO_ADDRESS);
-    });
-
-    it("executeSwapOrder, triggerAboveThreshold == true, USDG -> DAI -> BTC", async () => {
-        const triggerRatio = getTriggerRatio(toUsd(1), toUsd(62000));
-        const amountIn = expandDecimals(1000, 18);
-        const path = [usdg.address, dai.address, btc.address];
-        const value = defaults.executionFee;
-
-        // minOut is not mandatory for such orders but with minOut it's possible to limit max price
-        // e.g. user would not be happy if he sets order "buy if BTC > $65000" and order executes with $75000
-        const minOut = await getMinOut(
-            tokenDecimals, 
-            getTriggerRatio(toUsd(1), toUsd(63000)),
-            path,
-            amountIn
-        );
-
-        await defaultCreateSwapOrder({
-            path,
-            minOut,
-            triggerRatio,
-            triggerAboveThreshold: true,
-            amountIn,
-            value
-        });
-
-        const executor = user1;
-
-        await expect(orderBook.executeSwapOrder(defaults.user.address, 2, executor.address))
-            .to.be.revertedWith("OrderBook: non-existent order");
-
-        btcPriceFeed.setLatestAnswer(toChainlinkPrice(60500));
-        await expect(orderBook.executeSwapOrder(defaults.user.address, 0, executor.address))
-            .to.be.revertedWith("OrderBook: invalid price for execution");
-
-        btcPriceFeed.setLatestAnswer(toChainlinkPrice(70000));
-        await expect(orderBook.executeSwapOrder(defaults.user.address, 0, executor.address))
-            .to.be.revertedWith("OrderBook: insufficient amountOut");
-
-        btcPriceFeed.setLatestAnswer(toChainlinkPrice(62500));
-
-        const executorBalanceBefore = await executor.getBalance();
-        const userBtcBalanceBefore = await btc.balanceOf(defaults.user.address);
-
-        const tx = await orderBook.executeSwapOrder(defaults.user.address, 0, executor.address);
-        reportGasUsed(provider, tx, 'executeSwapOrder');
-
-        const executorBalanceAfter = await user1.getBalance();
-        expect(executorBalanceAfter, 'executorBalanceAfter').to.be.equal(executorBalanceBefore.add(defaults.executionFee));
-
-        const userBtcBalanceAfter = await btc.balanceOf(defaults.user.address);
-        expect(userBtcBalanceAfter.gt(userBtcBalanceBefore.add(minOut)), 'userBtcBalanceAfter').to.be.true;
-
-        const order = await getCreatedSwapOrder(defaults.user.address, 0);
-        expect(order.account).to.be.equal(ZERO_ADDRESS);
-    });
-
-    it("executeSwapOrder, triggerAboveThreshold == true, USDG -> BNB -> BTC", async () => {
-        const triggerRatio = getTriggerRatio(toUsd(1), toUsd(62000));
-        const amountIn = expandDecimals(1000, 18);
-        const path = [usdg.address, bnb.address, btc.address];
-        const value = defaults.executionFee;
-
-        // minOut is not mandatory for such orders but with minOut it's possible to limit max price
-        // e.g. user would not be happy if he sets order "buy if BTC > $65000" and order executes with $75000
-        const minOut = await getMinOut(
-            tokenDecimals, 
-            getTriggerRatio(toUsd(1), toUsd(63000)),
-            path,
-            amountIn
-        );
-
-        await defaultCreateSwapOrder({
-            path,
-            minOut,
-            triggerRatio,
-            triggerAboveThreshold: true,
-            amountIn,
-            value
-        });
-
-        const executor = user1;
-
-        await expect(orderBook.executeSwapOrder(defaults.user.address, 2, executor.address))
-            .to.be.revertedWith("OrderBook: non-existent order");
-
-        btcPriceFeed.setLatestAnswer(toChainlinkPrice(60500));
-        await expect(orderBook.executeSwapOrder(defaults.user.address, 0, executor.address))
-            .to.be.revertedWith("OrderBook: invalid price for execution");
-
-        btcPriceFeed.setLatestAnswer(toChainlinkPrice(70000));
-        await expect(orderBook.executeSwapOrder(defaults.user.address, 0, executor.address))
-            .to.be.revertedWith("OrderBook: insufficient amountOut");
-
-        btcPriceFeed.setLatestAnswer(toChainlinkPrice(62500));
-
-        const executorBalanceBefore = await executor.getBalance();
-        const userBtcBalanceBefore = await btc.balanceOf(defaults.user.address);
-
-        const tx = await orderBook.executeSwapOrder(defaults.user.address, 0, executor.address);
-        reportGasUsed(provider, tx, 'executeSwapOrder');
-
-        const executorBalanceAfter = await user1.getBalance();
-        expect(executorBalanceAfter, 'executorBalanceAfter').to.be.equal(executorBalanceBefore.add(defaults.executionFee));
-
-        const userBtcBalanceAfter = await btc.balanceOf(defaults.user.address);
-        expect(userBtcBalanceAfter.gt(userBtcBalanceBefore.add(minOut)), 'userBtcBalanceAfter').to.be.true;
-
-        const order = await getCreatedSwapOrder(defaults.user.address, 0);
-        expect(order.account).to.be.equal(ZERO_ADDRESS);
-    });
-
-    it("executeSwapOrder, triggerAboveThreshold == true, BTC -> USDG", async () => {
-        const triggerRatio = getTriggerRatio(toUsd(62000), toUsd(1));
-        const amountIn = expandDecimals(1, 6); // 0.01 BTC
-        const path = [btc.address, usdg.address];
-        const value = defaults.executionFee;
-
-        // minOut is not mandatory for such orders but with minOut it's possible to limit max price
-        // e.g. user would not be happy if he sets order "buy if BTC > $65000" and order executes with $75000
-        const minOut = await getMinOut(
-            tokenDecimals, 
-            getTriggerRatio(toUsd(60000), toUsd(1)),
-            path,
-            amountIn
-        );
-
-        await defaultCreateSwapOrder({
-            path,
-            minOut,
-            triggerRatio,
-            triggerAboveThreshold: true,
-            amountIn,
-            value
-        });
-
-        const executor = user1;
-
-        await expect(orderBook.executeSwapOrder(defaults.user.address, 2, executor.address))
-            .to.be.revertedWith("OrderBook: non-existent order");
-
-        btcPriceFeed.setLatestAnswer(toChainlinkPrice(63000));
-        await expect(orderBook.executeSwapOrder(defaults.user.address, 0, executor.address))
-            .to.be.revertedWith("OrderBook: invalid price for execution");
-
-        btcPriceFeed.setLatestAnswer(toChainlinkPrice(50000));
-        await expect(orderBook.executeSwapOrder(defaults.user.address, 0, executor.address))
-            .to.be.revertedWith("OrderBook: insufficient amountOut");
-
-        btcPriceFeed.setLatestAnswer(toChainlinkPrice(61000));
-
-        const executorBalanceBefore = await executor.getBalance();
-        const userUsdgBalanceBefore = await usdg.balanceOf(defaults.user.address);
-
-        const tx = await orderBook.executeSwapOrder(defaults.user.address, 0, executor.address);
-        reportGasUsed(provider, tx, 'executeSwapOrder');
-
-        const executorBalanceAfter = await user1.getBalance();
-        expect(executorBalanceAfter, 'executorBalanceAfter').to.be.equal(executorBalanceBefore.add(defaults.executionFee));
-
-        const userUsdgBalanceAfter = await usdg.balanceOf(defaults.user.address);
-        expect(userUsdgBalanceAfter.gt(userUsdgBalanceBefore.add(minOut)), 'userUsdgBalanceAfter').to.be.true;
 
         const order = await getCreatedSwapOrder(defaults.user.address, 0);
         expect(order.account).to.be.equal(ZERO_ADDRESS);
@@ -926,8 +813,18 @@ describe("OrderBook, swap orders", function () {
 
         // try to execute order 1
         await btcPriceFeed.setLatestAnswer(toChainlinkPrice(BTC_PRICE + 1500));
-        await expect(orderBook.executeSwapOrder(defaults.user.address, order1Index, user1.address), 'order1 revert')
+        let feedTokens = [dai.address, btc.address, bnb.address];
+        let precisions = [26, 26, 26];
+        let minPrices = [Math.trunc(1 *10**4), Math.trunc((BTC_PRICE + 1500) *10**4), Math.trunc(BNB_PRICE *10**4)];
+        let maxPrices = [Math.trunc(1 *10**4), Math.trunc((BTC_PRICE + 1500) *10**4), Math.trunc(BNB_PRICE *10**4)];
+        let priceFeedTokens = [];
+        let oracleParam = await prepareOracleParam(feedTokens, precisions, minPrices, maxPrices, priceFeedTokens, await getOracleBlock(provider))
+        expect(oracleParam).to.not.be.null;
+        await oracle.setPrices(oracleParam)
+
+        await expect(orderBook.executeSwapOrder(defaults.user.address, order1Index, user1.address, oracle.address), 'order1 revert')
             .to.be.revertedWith("OrderBook: invalid price for execution");
+        await oracle.clearAllPrices();
 
         // update order 1
         const newTriggerRatio1 = toUsd(BTC_PRICE + 1000).mul(PRICE_PRECISION).div(toUsd(1));
@@ -936,9 +833,13 @@ describe("OrderBook, swap orders", function () {
         expect(order1.triggerRatio, 'order1 triggerRatio').to.be.equal(newTriggerRatio1);
 
         //  execute order 1
-        await orderBook.executeSwapOrder(defaults.user.address, order1Index, user1.address);
+        oracleParam = await prepareOracleParam(feedTokens, precisions, minPrices, maxPrices, priceFeedTokens, await getOracleBlock(provider))
+        expect(oracleParam).to.not.be.null;
+        await oracle.setPrices(oracleParam)
+        await orderBook.executeSwapOrder(defaults.user.address, order1Index, user1.address, oracle.address);
         order1 = await getCreatedSwapOrder(defaults.user.address, order1Index);
         expect(order1.account, 'order1 account').to.be.equal(ZERO_ADDRESS);
+        await oracle.clearAllPrices();
 
         // cancel order 3
         let btcBalanceBefore = await btc.balanceOf(defaults.user.address);
@@ -950,13 +851,24 @@ describe("OrderBook, swap orders", function () {
         expect(btcBalanceAfter.gt(btcBalanceBefore.add(props3.minOut)), 'btcBalanceBefore');
 
         // try to execute order 2
-        await expect(orderBook.executeSwapOrder(defaults.user.address, order2Index, user1.address), 'order2 revert')
+        oracleParam = await prepareOracleParam(feedTokens, precisions, minPrices, maxPrices, priceFeedTokens, await getOracleBlock(provider))
+        expect(oracleParam).to.not.be.null;
+        await oracle.setPrices(oracleParam)        
+        await expect(orderBook.executeSwapOrder(defaults.user.address, order2Index, user1.address, oracle.address), 'order2 revert')
             .to.be.revertedWith("OrderBook: insufficient amountOut");
+        await oracle.clearAllPrices();
 
         // execute order 2
         await bnbPriceFeed.setLatestAnswer(toChainlinkPrice(BNB_PRICE + 100)); // BTC price decreased relative to BNB
-        await orderBook.executeSwapOrder(defaults.user.address, order2Index, user1.address);
+
+        minPrices = [Math.trunc(1 *10**4), Math.trunc((BTC_PRICE + 1500) *10**4), Math.trunc((BNB_PRICE + 100) *10**4)];
+        maxPrices = [Math.trunc(1 *10**4), Math.trunc((BTC_PRICE + 1500) *10**4), Math.trunc((BNB_PRICE + 100) *10**4)];
+        oracleParam = await prepareOracleParam(feedTokens, precisions, minPrices, maxPrices, priceFeedTokens, await getOracleBlock(provider))
+        expect(oracleParam).to.not.be.null;
+        await oracle.setPrices(oracleParam)     
+        await orderBook.executeSwapOrder(defaults.user.address, order2Index, user1.address, oracle.address);
         let order2 = await getCreatedSwapOrder(defaults.user.address, order2Index);
         expect(order2.account, 'order2 account').to.be.equal(ZERO_ADDRESS);
+        await oracle.clearAllPrices();
     });
 });

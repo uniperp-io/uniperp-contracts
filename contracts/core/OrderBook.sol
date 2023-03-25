@@ -488,6 +488,9 @@ contract OrderBook is ReentrancyGuard, IOrderBook {
         require(order.account != address(0), "OrderBook: non-existent order");
         {
             for (uint i = 0; i < order.path.length; i++) {
+                if (order.path[i] == usdg) {
+                    continue;
+                }
                 if (order.updatedAtBlock > IOracle(_oracle).minOracleBlockNumbers(order.path[i])) {
                     revert("order.updatedAtBlock > oracle.minOracleBlockNumbers");
                 }
@@ -751,8 +754,14 @@ contract OrderBook is ReentrancyGuard, IOrderBook {
         require(order.account != address(0), "OrderBook: non-existent order");
 
         {
+            if (order.updatedAtBlock > IOracle(_oracle).minOracleBlockNumbers(order.purchaseToken)) {
+                revert("order.updatedAtBlock > oracle.minOracleBlockNumbers1");
+            }
+            if (order.updatedAtBlock > IOracle(_oracle).minOracleBlockNumbers(order.collateralToken)) {
+                revert("order.updatedAtBlock > oracle.minOracleBlockNumbers2");
+            }
             if (order.updatedAtBlock > IOracle(_oracle).minOracleBlockNumbers(order.indexToken)) {
-                revert("order.updatedAtBlock > oracle.minOracleBlockNumbers");
+                revert("order.updatedAtBlock > oracle.minOracleBlockNumbers3");
             }
         }
 
@@ -878,6 +887,9 @@ contract OrderBook is ReentrancyGuard, IOrderBook {
         require(order.account != address(0), "OrderBook: non-existent order");
 
         {
+            if (order.updatedAtBlock > IOracle(_oracle).minOracleBlockNumbers(order.collateralToken)) {
+                revert("order.updatedAtBlock > oracle.minOracleBlockNumbers2");
+            }
             if (order.updatedAtBlock > IOracle(_oracle).minOracleBlockNumbers(order.indexToken)) {
                 revert("order.updatedAtBlock > oracle.minOracleBlockNumbers");
             }

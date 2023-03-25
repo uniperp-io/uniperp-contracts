@@ -59,6 +59,11 @@ describe("Vault.decreaseLongPosition", function () {
     await vaultPriceFeed.setTokenConfig(btc.address, btcPriceFeed.address, 8, false)
     await vaultPriceFeed.setTokenConfig(dai.address, daiPriceFeed.address, 8, false)
 
+    await vault.setSyntheticStableToken(dai.address)
+    await vaultUtils.setIsTradable(bnb.address, true)
+    await vaultUtils.setIsTradable(btc.address, true)
+    await vaultUtils.setIsTradable(dai.address, true)
+
     await vault.setFees(
       50, // _taxBasisPoints
       20, // _stableTaxBasisPoints
@@ -429,12 +434,12 @@ describe("Vault.decreaseLongPosition", function () {
     expect(delta[0]).eq(true)
     expect(delta[1]).eq(toUsd(90))
 
-    expect(await vault.cumulativeFundingRates(btc.address)).eq(0)
+    expect(await vaultUtils.cumulativeFundingRates(btc.address)).eq(0)
 
     await increaseTime(provider, 100 * 24 * 60 * 60)
 
-    await vault.updateCumulativeFundingRate(btc.address, btc.address)
-    expect(await vault.cumulativeFundingRates(btc.address)).eq(147796)
+    await vaultUtils.updateCumulativeFundingRate(btc.address, btc.address)
+    expect(await vaultUtils.cumulativeFundingRates(btc.address)).eq(147796)
 
     await expect(vault.connect(user0).decreasePosition(user0.address, btc.address, btc.address, 0, toUsd(10), true, user2.address))
       .to.be.revertedWith("SafeMath: subtraction overflow")

@@ -55,6 +55,11 @@ describe("Vault.settings", function () {
     await vaultPriceFeed.setTokenConfig(bnb.address, bnbPriceFeed.address, 8, false)
     await vaultPriceFeed.setTokenConfig(btc.address, btcPriceFeed.address, 8, false)
     await vaultPriceFeed.setTokenConfig(dai.address, daiPriceFeed.address, 8, false)
+
+  	await vault.setSyntheticStableToken(dai.address)
+    await vaultUtils.setIsTradable(bnb.address, true)
+    await vaultUtils.setIsTradable(btc.address, true)
+    await vaultUtils.setIsTradable(dai.address, true)
   })
 
   it("inits", async () => {
@@ -68,8 +73,8 @@ describe("Vault.settings", function () {
     expect(await vault.usdg()).eq(usdg.address)
     expect(await vault.priceFeed()).eq(vaultPriceFeed.address)
     expect(await vault.liquidationFeeUsd()).eq(toUsd(5))
-    expect(await vault.fundingRateFactor()).eq(600)
-    expect(await vault.stableFundingRateFactor()).eq(600)
+    expect(await vaultUtils.fundingRateFactor()).eq(600)
+    expect(await vaultUtils.stableFundingRateFactor()).eq(600)
   })
 
   it("setVaultUtils", async () => {
@@ -188,17 +193,17 @@ describe("Vault.settings", function () {
   })
 
   it("setMaxLeverage", async () => {
-    await expect(vault.connect(user0).setMaxLeverage(10000))
-      .to.be.revertedWith("Vault: forbidden")
+    await expect(vaultUtils.connect(user0).setMaxLeverage(10000))
+      .to.be.revertedWith("Governable: forbidden")
 
-    await vault.setGov(user0.address)
+    await vaultUtils.setGov(user0.address)
 
-    await expect(vault.connect(user0).setMaxLeverage(10000))
+    await expect(vaultUtils.connect(user0).setMaxLeverage(10000))
       .to.be.revertedWith("Vault: invalid _maxLeverage")
 
-    expect(await vault.maxLeverage()).eq(50 * 10000)
-    await vault.connect(user0).setMaxLeverage(10001)
-    expect(await vault.maxLeverage()).eq(10001)
+    expect(await vaultUtils.maxLeverage()).eq(50 * 10000)
+    await vaultUtils.connect(user0).setMaxLeverage(10001)
+    expect(await vaultUtils.maxLeverage()).eq(10001)
   })
 
   it("setBufferAmount", async () => {
@@ -259,32 +264,32 @@ describe("Vault.settings", function () {
   })
 
   it("setFundingRate", async () => {
-    await expect(vault.connect(user0).setFundingRate(59 * 60, 10001, 10001))
-      .to.be.revertedWith("Vault: forbidden")
+    await expect(vaultUtils.connect(user0).setFundingRate(59 * 60, 10001, 10001))
+      .to.be.revertedWith("Governable: forbidden")
 
-    await vault.setGov(user0.address)
+    await vaultUtils.setGov(user0.address)
 
-    await expect(vault.connect(user0).setFundingRate(59 * 60, 10001, 10001))
+    await expect(vaultUtils.connect(user0).setFundingRate(59 * 60, 10001, 10001))
       .to.be.revertedWith("Vault: invalid _fundingInterval")
 
-    await expect(vault.connect(user0).setFundingRate(60 * 60, 10001, 10001))
+    await expect(vaultUtils.connect(user0).setFundingRate(60 * 60, 10001, 10001))
       .to.be.revertedWith("Vault: invalid _fundingRateFactor")
 
-    await expect(vault.connect(user0).setFundingRate(60 * 60, 10000, 10001))
+    await expect(vaultUtils.connect(user0).setFundingRate(60 * 60, 10000, 10001))
       .to.be.revertedWith("Vault: invalid _stableFundingRateFactor")
 
-    expect(await vault.fundingInterval()).eq(8 * 60 * 60)
-    expect(await vault.fundingRateFactor()).eq(600)
-    expect(await vault.stableFundingRateFactor()).eq(600)
-    await vault.connect(user0).setFundingRate(60 * 60, 10000, 10000)
-    expect(await vault.fundingInterval()).eq(60 * 60)
-    expect(await vault.fundingRateFactor()).eq(10000)
-    expect(await vault.stableFundingRateFactor()).eq(10000)
+    expect(await vaultUtils.fundingInterval()).eq(8 * 60 * 60)
+    expect(await vaultUtils.fundingRateFactor()).eq(600)
+    expect(await vaultUtils.stableFundingRateFactor()).eq(600)
+    await vaultUtils.connect(user0).setFundingRate(60 * 60, 10000, 10000)
+    expect(await vaultUtils.fundingInterval()).eq(60 * 60)
+    expect(await vaultUtils.fundingRateFactor()).eq(10000)
+    expect(await vaultUtils.stableFundingRateFactor()).eq(10000)
 
-    await vault.connect(user0).setFundingRate(120 * 60, 1000,2000)
-    expect(await vault.fundingInterval()).eq(120 * 60)
-    expect(await vault.fundingRateFactor()).eq(1000)
-    expect(await vault.stableFundingRateFactor()).eq(2000)
+    await vaultUtils.connect(user0).setFundingRate(120 * 60, 1000,2000)
+    expect(await vaultUtils.fundingInterval()).eq(120 * 60)
+    expect(await vaultUtils.fundingRateFactor()).eq(1000)
+    expect(await vaultUtils.stableFundingRateFactor()).eq(2000)
   })
 
   it("setTokenConfig", async () => {
@@ -295,7 +300,8 @@ describe("Vault.settings", function () {
       75, // _minProfitBps
       0, // _maxUsdgAmount
       true, // _isStable
-      true // _isShortable
+      true, // _isShortable
+      false
     ]
 
     await expect(vault.connect(user0).setTokenConfig(...params))
@@ -339,7 +345,8 @@ describe("Vault.settings", function () {
       50, // _minProfitBps
       1000, // _maxUsdgAmount
       false, // _isStable
-      false // _isShortable
+      false, // _isShortable
+      false
     )
 
     expect(await vault.whitelistedTokenCount()).eq(2)
@@ -360,7 +367,8 @@ describe("Vault.settings", function () {
       10, // _minProfitBps
       500, // _maxUsdgAmount
       true, // _isStable
-      false // _isShortable
+      false, // _isShortable
+      false
     )
 
     expect(await vault.whitelistedTokenCount()).eq(2)
@@ -383,7 +391,8 @@ describe("Vault.settings", function () {
       75, // _minProfitBps
       500, // _maxUsdgAmount
       true, // _isStable
-      true // _isShortable
+      true, // _isShortable
+      false
     ]
 
     await bnbPriceFeed.setLatestAnswer(toChainlinkPrice(300))
@@ -418,7 +427,8 @@ describe("Vault.settings", function () {
       10, // _minProfitBps
       500, // _maxUsdgAmount
       true, // _isStable
-      false // _isShortable
+      false, // _isShortable
+      false
     )
 
     expect(await vault.whitelistedTokenCount()).eq(2)
@@ -504,7 +514,7 @@ describe("Vault.settings", function () {
   it("setErrorController", async () => {
     const vaultErrorController = await deployContract("VaultErrorController", [])
     await expect(vaultErrorController.setErrors(vault.address, ["Example Error 1", "Example Error 2"]))
-      .to.be.revertedWith("Vault: invalid errorController")
+      .to.be.revertedWith("VIEC")
 
     await expect(vault.connect(user0).setErrorController(vaultErrorController.address))
       .to.be.revertedWith("Vault: forbidden")
