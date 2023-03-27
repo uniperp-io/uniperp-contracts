@@ -380,7 +380,6 @@ contract VaultUtils is IVaultUtils, Governable {
     }
 
     function processBuyUSDG(address _token, uint256 tokenAmount, address usdg) public onlyVault returns (uint256, uint256) {
-        vault.validateManager();
         _validate(vault.whitelistedTokens(_token), 16);
         //useSwapPricing = true;
         _validate(tokenAmount > 0, 17);

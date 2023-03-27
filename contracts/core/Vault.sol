@@ -474,6 +474,7 @@ contract Vault is ReentrancyGuard, IVault {
     //the above functions are used to set status var
 
     function buyUSDG(address _token, address _receiver) external override nonReentrant returns (uint256) {
+        validateManager();
         uint256 tokenAmount = _transferIn(_token);
         (uint256 price, uint256 feeBasisPoints) = vaultUtils.processBuyUSDG(_token, tokenAmount, usdg);
 
