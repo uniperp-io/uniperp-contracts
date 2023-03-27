@@ -8,13 +8,13 @@ import { NonceManager } from '@ethersproject/experimental';
 import { range } from 'lodash';
 
 export async function deployFixture() {
-    const chainId = 421613; // hardhat chain id
+    const chainId = 280; // hardhat chain id
 
     const mnemonic = "hat solid this else damage remind ghost resist broom online pear curtain"
     const masterNode = HDNode.fromMnemonic(mnemonic);
     const amount = 20
     
-    const ARBITRUM_TESTNET_URL = "https://goerli-rollup.arbitrum.io/rpc";
+    const ARBITRUM_TESTNET_URL = "https://testnet.era.zksync.dev";
     let rpcProvider = new ethers.providers.JsonRpcProvider(ARBITRUM_TESTNET_URL)
 
     const accountList = range(amount).map(i => {

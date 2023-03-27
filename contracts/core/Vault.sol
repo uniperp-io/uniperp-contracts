@@ -63,15 +63,14 @@ contract Vault is ReentrancyGuard, IVault {
     uint256 public override minProfitTime;
     bool public override hasDynamicFees = false;
 
-    bool public includeAmmPrice = true;
-    bool public useSwapPricing = false;
+    //bool public includeAmmPrice = true;
+    //bool public useSwapPricing = false;
 
     bool public override inManagerMode = false;
     bool public override inPrivateLiquidationMode = false;
 
     uint256 public override totalTokenWeights;
 
-    uint256 public override maxGasPrice;
 
     mapping (address => mapping (address => bool)) public override approvedRouters;
     mapping (address => bool) public override isLiquidator;
@@ -317,11 +316,6 @@ contract Vault is ReentrancyGuard, IVault {
         usdcSharesForSyntheticAsset = _usdcSharesForSyntheticAsset;
     }
 
-    function setMaxGasPrice(uint256 _maxGasPrice) external override {
-        _onlyGov();
-        maxGasPrice = _maxGasPrice;
-    }
-
     function setGov(address _gov) external {
         _onlyGov();
         gov = _gov;
@@ -477,25 +471,12 @@ contract Vault is ReentrancyGuard, IVault {
         _increasePoolAmount(_token, tokenAmount);
         emit DirectPoolDeposit(_token, tokenAmount);
     }
-    //the above functions are used to status var
+    //the above functions are used to set status var
 
     function buyUSDG(address _token, address _receiver) external override nonReentrant returns (uint256) {
-        _validateManager();
-        _validate(whitelistedTokens[_token], 16);
-        useSwapPricing = true;
-
         uint256 tokenAmount = _transferIn(_token);
-        _validate(tokenAmount > 0, 17);
+        (uint256 price, uint256 feeBasisPoints) = vaultUtils.processBuyUSDG(_token, tokenAmount, usdg);
 
-        updateCumulativeFundingRate(_token, _token);
-
-        uint256 price = getMinPrice(_token);
-
-        uint256 usdgAmount = tokenAmount.mul(price).div(PRICE_PRECISION);
-        usdgAmount = adjustForDecimals(usdgAmount, _token, usdg);
-        _validate(usdgAmount > 0, 18);
-
-        uint256 feeBasisPoints = vaultUtils.getBuyUsdgFeeBasisPoints(_token, usdgAmount);
         uint256 amountAfterFees = _collectSwapFees(_token, tokenAmount, feeBasisPoints);
         uint256 mintAmount = amountAfterFees.mul(price).div(PRICE_PRECISION);
         mintAmount = adjustForDecimals(mintAmount, _token, usdg);
@@ -506,15 +487,13 @@ contract Vault is ReentrancyGuard, IVault {
         IUSDG(usdg).mint(_receiver, mintAmount);
 
         emit BuyUSDG(_receiver, _token, tokenAmount, mintAmount, feeBasisPoints);
-
-        useSwapPricing = false;
         return mintAmount;
     }
 
     function sellUSDG(address _token, address _receiver) external override nonReentrant returns (uint256) {
-        _validateManager();
+        validateManager();
         _validate(whitelistedTokens[_token], 19);
-        useSwapPricing = true;
+        //useSwapPricing = true;
 
         uint256 usdgAmount = _transferIn(usdg);
         _validate(usdgAmount > 0, 20);
@@ -543,7 +522,7 @@ contract Vault is ReentrancyGuard, IVault {
 
         emit SellUSDG(_receiver, _token, usdgAmount, amountOut, feeBasisPoints);
 
-        useSwapPricing = false;
+        //useSwapPricing = false;
         return amountOut;
     }
 
@@ -555,7 +534,7 @@ contract Vault is ReentrancyGuard, IVault {
     function swap(address _tokenIn, address _tokenOut, address _receiver) public override nonReentrant returns (uint256) {
         _validate(isSwapEnabled, 23);
         vaultUtils.validateSwap(_tokenIn, _tokenOut);
-        useSwapPricing = true;
+        //useSwapPricing = true;
 
         updateCumulativeFundingRate(_tokenIn, _tokenIn);
         updateCumulativeFundingRate(_tokenOut, _tokenOut);
@@ -588,7 +567,7 @@ contract Vault is ReentrancyGuard, IVault {
 
         emit Swap(_receiver, _tokenIn, _tokenOut, amountIn, amountOut, amountOutAfterFees, feeBasisPoints);
 
-        useSwapPricing = false;
+        //useSwapPricing = false;
         return amountOutAfterFees;
     }
 
@@ -608,7 +587,6 @@ contract Vault is ReentrancyGuard, IVault {
 
     function _increasePosition(address _account, address _collateralToken, address _indexToken, uint256 _sizeDelta, bool _isLong) private {
         _validate(isLeverageEnabled, 28);
-        _validateGasPrice();
         _validateRouter(_account);
         vaultUtils.validateTokens(_collateralToken, _indexToken, _isLong);
         vaultUtils.validateIncreasePosition(_account, _collateralToken, _indexToken, _sizeDelta, _isLong);
@@ -692,7 +670,6 @@ contract Vault is ReentrancyGuard, IVault {
     }
 
     function decreasePosition(address _account, address _collateralToken, address _indexToken, uint256 _collateralDelta, uint256 _sizeDelta, bool _isLong, address _receiver) public override nonReentrant returns (uint256) {
-        _validateGasPrice();
         _validateRouter(_account);
         return _decreasePosition(_account, _collateralToken, _indexToken, _collateralDelta, _sizeDelta, _isLong, _receiver);
     }
@@ -847,7 +824,7 @@ contract Vault is ReentrancyGuard, IVault {
 			return IOracle(oracle).getMaxPrice(_token);
 		}
 
-        return IVaultPriceFeedLess(priceFeed).getPrice(_token, true, includeAmmPrice, useSwapPricing);
+        return IVaultPriceFeedLess(priceFeed).getPrice(_token, true, false, false);
     }
 
     function getMinPrice(address _token) public override view returns (uint256) {
@@ -855,7 +832,7 @@ contract Vault is ReentrancyGuard, IVault {
 			return IOracle(oracle).getMinPrice(_token);
 		}
 
-        return IVaultPriceFeedLess(priceFeed).getPrice(_token, false, includeAmmPrice, useSwapPricing);
+        return IVaultPriceFeedLess(priceFeed).getPrice(_token, false, false, false);
     }
 
     function getRedemptionAmount(address _token, uint256 _usdgAmount) public override view returns (uint256) {
@@ -863,7 +840,7 @@ contract Vault is ReentrancyGuard, IVault {
         return adjustForDecimals(redemptionAmount, usdg, _token);
     }
 
-    function adjustForDecimals(uint256 _amount, address _tokenDiv, address _tokenMul) public view returns (uint256) {
+    function adjustForDecimals(uint256 _amount, address _tokenDiv, address _tokenMul) public override view returns (uint256) {
         uint256 decimalsDiv = _tokenDiv == usdg ? USDG_DECIMALS : tokenDecimals[_tokenDiv];
         uint256 decimalsMul = _tokenMul == usdg ? USDG_DECIMALS : tokenDecimals[_tokenMul];
         return _amount.mul(10 ** decimalsMul).div(10 ** decimalsDiv);
@@ -1055,6 +1032,7 @@ contract Vault is ReentrancyGuard, IVault {
         return afterFeeAmount;
     }
 
+/*
     function _collectMarginFees(address _account, address _collateralToken, address _indexToken, bool _isLong, uint256 _sizeDelta, uint256 _size, uint256 _entryFundingRate) private returns (uint256) {
         uint256 feeUsd = getPositionFee(_account, _collateralToken, _indexToken, _isLong, _sizeDelta);
 
@@ -1064,6 +1042,14 @@ contract Vault is ReentrancyGuard, IVault {
         uint256 feeTokens = usdToTokenMin(_collateralToken, feeUsd);
         feeReserves[_collateralToken] = feeReserves[_collateralToken].add(feeTokens);
 
+        emit CollectMarginFees(_collateralToken, feeUsd, feeTokens);
+        return feeUsd;
+    }*/
+
+    function _collectMarginFees(address _account, address _collateralToken, address _indexToken, bool _isLong, uint256 _sizeDelta, uint256 _size, uint256 _entryFundingRate) private returns (uint256) {
+        (uint256 feeUsd, uint256 feeTokens) = vaultUtils.calcMarginFees( _account,  _collateralToken,  _indexToken,  _isLong,  _sizeDelta,  _size,  _entryFundingRate);
+        
+        feeReserves[_collateralToken] = feeReserves[_collateralToken].add(feeTokens);
         emit CollectMarginFees(_collateralToken, feeUsd, feeTokens);
         return feeUsd;
     }
@@ -1094,7 +1080,7 @@ contract Vault is ReentrancyGuard, IVault {
     }
 
     function _decreasePoolAmount(address _token, uint256 _amount) private {
-        poolAmounts[_token] = poolAmounts[_token].sub(_amount, "Vault: poolAmount exceeded");
+        poolAmounts[_token] = poolAmounts[_token].sub(_amount, "Vault_PAE");
         _validate(reservedAmounts[_token] <= poolAmounts[_token], 50);
         emit DecreasePoolAmount(_token, _amount);
     }
@@ -1113,7 +1099,7 @@ contract Vault is ReentrancyGuard, IVault {
 
     function _validateBufferAmount(address _token) private view {
         if (poolAmounts[_token] < bufferAmounts[_token]) {
-            revert("Vault: poolAmount < buffer");
+            revert("Vault_PAB");
         }
     }
 
@@ -1186,16 +1172,10 @@ contract Vault is ReentrancyGuard, IVault {
     }
 
     // we have this validation as a function instead of a modifier to reduce contract size
-    function _validateManager() private view {
+    function validateManager() public view {
         if (inManagerMode) {
             _validate(isManager[msg.sender], 54);
         }
-    }
-
-    // we have this validation as a function instead of a modifier to reduce contract size
-    function _validateGasPrice() private view {
-        if (maxGasPrice == 0) { return; }
-        _validate(tx.gasprice <= maxGasPrice, 55);
     }
 
     function _validate(bool _condition, uint256 _errorCode) private view {

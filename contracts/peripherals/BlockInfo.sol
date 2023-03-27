@@ -9,6 +9,10 @@ contract BlockInfo {
         return block.chainid;
     }
 
+    function currentTimestamp() public view returns (uint256) {
+        return block.timestamp;
+    }
+
     function currentArbBlockNumber() public view returns (uint256) {
         return Chain.currentBlockNumber();
     }

@@ -448,9 +448,9 @@ contract Oracle is ReentrancyGuard, Governable {
         SetPricesCache memory cache;
         cache.minBlockConfirmations = MIN_ORACLE_BLOCK_CONFIRMATIONS;
         cache.maxPriceAge = MAX_ORACLE_PRICE_AGE;
-
         for (uint256 i = 0; i < params.tokens.length; i++) {
             cache.info.minOracleBlockNumber = OracleUtils.getUncompactedOracleBlockNumber(params.compactedMinOracleBlockNumbers, i);
+            
             cache.info.maxOracleBlockNumber = OracleUtils.getUncompactedOracleBlockNumber(params.compactedMaxOracleBlockNumbers, i);
 
             if (cache.info.minOracleBlockNumber > cache.info.maxOracleBlockNumber) {
@@ -459,7 +459,7 @@ contract Oracle is ReentrancyGuard, Governable {
             }
 
             cache.info.oracleTimestamp = OracleUtils.getUncompactedOracleTimestamp(params.compactedOracleTimestamps, i);
-
+            
             if (cache.info.minOracleBlockNumber > Chain.currentBlockNumber()) {
                 //revert InvalidBlockNumber(cache.info.minOracleBlockNumber);
                 revert("aa12");
@@ -475,6 +475,7 @@ contract Oracle is ReentrancyGuard, Governable {
                 //revert BlockNumbersNotSorted(cache.info.minOracleBlockNumber, cache.prevMinOracleBlockNumber);
                 revert("aa14");
             }
+            
             cache.prevMinOracleBlockNumber = cache.info.minOracleBlockNumber;
 
             cache.info.blockHash = bytes32(0);
@@ -539,7 +540,7 @@ contract Oracle is ReentrancyGuard, Governable {
                     //revert InvalidSignerMinMaxPrice(cache.info.minPrice, cache.info.maxPrice);
                     revert("aa21");
                 }
-
+                
                 OracleUtils.validateSigner(
                     SALT,
                     cache.info,
@@ -580,6 +581,7 @@ contract Oracle is ReentrancyGuard, Governable {
             minOracleBlockNumbers[cache.info.token] = cache.info.minOracleBlockNumber;
             maxOracleBlockNumbers[cache.info.token] = cache.info.maxOracleBlockNumber;
             tokensWithPrices.add(cache.info.token);
+            
         }
     }
 

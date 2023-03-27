@@ -274,9 +274,9 @@ contract UnipTimelock is IUnipTimelock {
         IVault(_vault).setVaultUtils(_vaultUtils);
     }
 
-    function setMaxGasPrice(address _vault,uint256 _maxGasPrice) external onlyAdmin {
+    function setMaxGasPrice(address _vaultUtils, uint256 _maxGasPrice) external onlyAdmin {
         require(_maxGasPrice > 5000000000, "Invalid _maxGasPrice");
-        IVault(_vault).setMaxGasPrice(_maxGasPrice);
+        IVaultUtils(_vaultUtils).setMaxGasPrice(_maxGasPrice);
     }
 
     function withdrawFees(address _vault,address _token, address _receiver) external onlyAdmin {

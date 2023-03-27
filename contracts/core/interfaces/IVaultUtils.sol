@@ -6,6 +6,8 @@ interface IVaultUtils {
     function maxLeverage() external view returns (uint256);
     function maxLeverages(address _token) external view returns (uint256);
     function isTradable(address _token) external view returns (bool);
+    function setMaxGasPrice(uint256 _maxGasPrice) external;
+    function maxGasPrice() external view returns (uint256);
     function setMaxLeverage(uint256 _maxLeverage) external;
     function setMaxLeverages(address _token, uint256 _maxLeverage) external;
     function setIsTradable(address _token, bool _isTradable) external;
@@ -43,6 +45,8 @@ interface IVaultUtils {
 
     function tokenToUsdMin(address _token, uint256 _tokenAmount) external view returns (uint256);
     function usdToToken(address _token, uint256 _usdAmount, uint256 _price) external view returns (uint256);
+    function processBuyUSDG(address _token, uint256 tokenAmount, address usdg) external returns (uint256, uint256);
+    function calcMarginFees(address _account, address _collateralToken, address _indexToken, bool _isLong, uint256 _sizeDelta, uint256 _size, uint256 _entryFundingRate) external view returns (uint256, uint256);
     function getRedemptionCollateral(address _token) external view returns (uint256);
     function getRedemptionCollateralUsd(address _token) external view returns (uint256);
 

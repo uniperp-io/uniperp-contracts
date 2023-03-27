@@ -30,11 +30,8 @@ interface IVault {
     function hasDynamicFees() external view returns (bool);
     function totalTokenWeights() external view returns (uint256);
     function getTargetUsdgAmount(address _token) external view returns (uint256);
-
     function inManagerMode() external view returns (bool);
     function inPrivateLiquidationMode() external view returns (bool);
-
-    function maxGasPrice() external view returns (uint256);
 
     function approvedRouters(address _account, address _router) external view returns (bool);
     function isLiquidator(address _account) external view returns (bool);
@@ -49,7 +46,6 @@ interface IVault {
     function setIsLeverageEnabled(bool _isLeverageEnabled) external;
     function setIsSyntheticTradeEnabled(bool _isSyntheticTradeEnabled) external;
     function setUsdcSharesForSyntheticAsset(uint256 _usdcSharesForSyntheticAsset) external;
-    function setMaxGasPrice(uint256 _maxGasPrice) external;
     function setUsdgAmount(address _token, uint256 _amount) external;
     function setBufferAmount(address _token, uint256 _amount) external;
     function setMaxGlobalShortSize(address _token, uint256 _amount) external;
@@ -133,6 +129,7 @@ interface IVault {
     function usdgAmounts(address _token) external view returns (uint256);
     function maxUsdgAmounts(address _token) external view returns (uint256);
     function getRedemptionAmount(address _token, uint256 _usdgAmount) external view returns (uint256);
+    function adjustForDecimals(uint256 _amount, address _tokenDiv, address _tokenMul) external view returns (uint256);
     function usdToTokenMin(address _token, uint256 _usdAmount) external view returns (uint256);
     function getMaxPrice(address _token) external view returns (uint256);
     function getMinPrice(address _token) external view returns (uint256);
@@ -140,4 +137,5 @@ interface IVault {
     function getDelta(address _indexToken, uint256 _size, uint256 _averagePrice, bool _isLong, uint256 _lastIncreasedTime) external view returns (bool, uint256);
     function getDeltaV2(address _indexToken, uint256 _size, uint256 _averagePrice, bool _isLong, uint256 _lastIncreasedTime, uint256 markPrice) external view returns (bool, uint256);
     function getPosition(address _account, address _collateralToken, address _indexToken, bool _isLong) external view returns (uint256, uint256, uint256, uint256, uint256, uint256, bool, uint256);
+    function validateManager() external view;
 }

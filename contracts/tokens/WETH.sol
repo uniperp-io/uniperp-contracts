@@ -1,322 +1,246 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2015, 2016, 2017 Dapphub
+
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 pragma solidity ^0.8.0;
 
-import "../libraries/token/IERC20.sol";
-import "../libraries/math/SafeMath.sol";
+interface IWETH {
+    function deposit() external payable;
+    function withdraw(uint wad) external;
 
-/**
- * @dev Implementation of the {IERC20} interface.
- *
- * This implementation is agnostic to the way tokens are created. This means
- * that a supply mechanism has to be added in a derived contract using {_mint}.
- * For a generic mechanism see {ERC20PresetMinterPauser}.
- *
- * TIP: For a detailed writeup see our guide
- * https://forum.zeppelin.solutions/t/how-to-implement-erc20-supply-mechanisms/226[How
- * to implement supply mechanisms].
- *
- * We have followed general OpenZeppelin guidelines: functions revert instead
- * of returning `false` on failure. This behavior is nonetheless conventional
- * and does not conflict with the expectations of ERC20 applications.
- *
- * Additionally, an {Approval} event is emitted on calls to {transferFrom}.
- * This allows applications to reconstruct the allowance for all accounts just
- * by listening to said events. Other implementations of the EIP may not emit
- * these events, as it isn't required by the specification.
- *
- * Finally, the non-standard {decreaseAllowance} and {increaseAllowance}
- * functions have been added to mitigate the well-known issues around setting
- * allowances. See {IERC20-approve}.
- */
-contract WETH is IERC20 {
-    using SafeMath for uint256;
+    event Deposit(address indexed dst, uint wad);
+    event Withdrawal(address indexed src, uint wad);
 
-    uint256 private _totalSupply;
+    error WETH_ETHTransferFailed();
+    error WETH_InvalidSignature();
+    error WETH_ExpiredSignature();
+    error WETH_InvalidTransferRecipient();
 
-    string private _name;
-    string private _symbol;
-    uint8 private _decimals;
+    // ERC20
+    function name() external view returns (string memory);
+    function symbol() external view returns (string memory);
+    function decimals() external view returns (uint8);
 
-    mapping (address => uint256) private _balances;
-    mapping (address => mapping (address => uint256)) private _allowances;
+    function totalSupply() external view returns (uint);
+    function balanceOf(address guy) external view returns (uint);
+    function allowance(address src, address dst) external view returns (uint);
 
-    /**
-     * @dev Sets the values for {name} and {symbol}, initializes {decimals} with
-     * a default value of 18.
-     *
-     * To select a different value for {decimals}, use {_setupDecimals}.
-     *
-     * All three of these values are immutable: they can only be set once during
-     * construction.
-     */
-    constructor(
-        string memory name,
-        string memory symbol,
-        uint8 decimals
-    ) {
-        _name = name;
-        _symbol = symbol;
-        _decimals = decimals;
+    function approve(address spender, uint wad) external returns (bool);
+    function transfer(address dst, uint wad) external returns (bool);
+    function transferFrom(address src, address dst, uint wad) external returns (bool);
+
+    event Approval(address indexed src, address indexed dst, uint wad);
+    event Transfer(address indexed src, address indexed dst, uint wad);
+
+    // ERC-165
+    function supportsInterface(bytes4 interfaceID) external view returns (bool);
+
+    // ERC-2612
+    function permit(address owner, address spender, uint value, uint deadline, uint8 v, bytes32 r, bytes32 s) external;
+    function nonces(address owner) external view returns (uint);
+    function DOMAIN_SEPARATOR() external view returns (bytes32);
+
+    // Permit2
+    function permit2(address owner, address spender, uint amount, uint deadline, bytes calldata signature) external;
+}
+
+contract WETH is IWETH {
+    string public constant override name = "Wrapped Ether";
+    string public constant override symbol = "WETH";
+    uint8 public override decimals = 18;
+
+    mapping (address => uint) public override balanceOf;
+    mapping (address => mapping (address => uint)) public override allowance;
+
+    bytes32 private constant PERMIT_TYPEHASH = 0x6e71edae12b1b97f4d1f60370fef10105fa2faae0126114a169c64845d6126c9; // keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)");
+    bytes4 private constant MAGICVALUE = 0x1626ba7e; // bytes4(keccak256("isValidSignature(bytes32,bytes)")
+    mapping(address => uint) public override nonces;
+
+    uint private immutable INITIAL_CHAIN_ID;
+    bytes32 private immutable INITIAL_DOMAIN_SEPARATOR;
+
+    constructor() {
+        INITIAL_CHAIN_ID = block.chainid;
+        INITIAL_DOMAIN_SEPARATOR = _computeDomainSeparator();
+    }
+
+    receive() external payable {
+        deposit();
+    }
+
+    function supportsInterface(bytes4 interfaceID) external pure override returns (bool) {
+        return
+            interfaceID == this.supportsInterface.selector || // ERC-165
+            interfaceID == this.permit.selector || // ERC-2612
+            interfaceID == this.permit2.selector; // Permit2
+    }
+
+    function DOMAIN_SEPARATOR() public view override returns (bytes32) {
+        return block.chainid == INITIAL_CHAIN_ID ? INITIAL_DOMAIN_SEPARATOR : _computeDomainSeparator();
+    }
+
+    function _computeDomainSeparator() private view returns (bytes32) {
+        return keccak256(
+            abi.encode(
+                // keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)")
+                0x8b73c3c69bb8fe3d512ecc4cf759cc79239f7b179b0ffacaa9a75d522b39400f,
+                // keccak256(bytes('Wrapped Ether')),
+                0x00cd3d46df44f2cbb950cf84eb2e92aa2ddd23195b1a009173ea59a063357ed3,
+                // keccak256(bytes("1"))
+                0xc89efdaa54c0f20c7adf612882df0950f5a951637e0307cdcb4c672f298b8bc6,
+                block.chainid,
+                address(this)
+            )
+        );
     }
 
     function deposit() public payable {
-        _balances[msg.sender] = _balances[msg.sender].add(msg.value);
+        balanceOf[msg.sender] += msg.value;
+        emit Deposit(msg.sender, msg.value);
     }
 
-    function withdraw(uint256 amount) public {
-        require(_balances[msg.sender] >= amount);
-        _balances[msg.sender] = _balances[msg.sender].sub(amount);
-        payable(msg.sender).transfer(amount);
+    function withdraw(uint value) external override {
+        balanceOf[msg.sender] -= value;
+        (bool success, ) = msg.sender.call{value: value}("");
+        if (!success) {
+            revert WETH_ETHTransferFailed();
+        }
+        emit Withdrawal(msg.sender, value);
     }
 
-    /**
-     * @dev Returns the name of the token.
-     */
-    function name() public view returns (string memory) {
-        return _name;
+    function totalSupply() external view override returns (uint) {
+        return address(this).balance;
     }
 
-    /**
-     * @dev Returns the symbol of the token, usually a shorter version of the
-     * name.
-     */
-    function symbol() public view returns (string memory) {
-        return _symbol;
-    }
-
-    /**
-     * @dev Returns the number of decimals used to get its user representation.
-     * For example, if `decimals` equals `2`, a balance of `505` tokens should
-     * be displayed to a user as `5,05` (`505 / 10 ** 2`).
-     *
-     * Tokens usually opt for a value of 18, imitating the relationship between
-     * Ether and Wei. This is the value {ERC20} uses, unless {_setupDecimals} is
-     * called.
-     *
-     * NOTE: This information is only used for _display_ purposes: it in
-     * no way affects any of the arithmetic of the contract, including
-     * {IERC20-balanceOf} and {IERC20-transfer}.
-     */
-    function decimals() public view returns (uint8) {
-        return _decimals;
-    }
-
-    /**
-     * @dev See {IERC20-totalSupply}.
-     */
-    function totalSupply() public view override returns (uint256) {
-        return _totalSupply;
-    }
-
-    /**
-     * @dev See {IERC20-balanceOf}.
-     */
-    function balanceOf(address account) public view override returns (uint256) {
-        return _balances[account];
-    }
-
-    /**
-     * @dev See {IERC20-transfer}.
-     *
-     * Requirements:
-     *
-     * - `recipient` cannot be the zero address.
-     * - the caller must have a balance of at least `amount`.
-     */
-    function transfer(address recipient, uint256 amount) public virtual override returns (bool) {
-        _transfer(_msgSender(), recipient, amount);
+    function approve(address spender, uint value) external override returns (bool) {
+        allowance[msg.sender][spender] = value;
+        emit Approval(msg.sender, spender, value);
         return true;
     }
 
-    /**
-     * @dev See {IERC20-allowance}.
-     */
-    function allowance(address owner, address spender) public view virtual override returns (uint256) {
-        return _allowances[owner][spender];
+    modifier ensuresRecipient(address to) {
+        // Prevents from burning or sending WETH tokens to the contract.
+        if (to == address(0)) {
+            revert WETH_InvalidTransferRecipient();
+        }
+        if (to == address(this)) {
+            revert WETH_InvalidTransferRecipient();
+        }
+        _;
     }
 
-    /**
-     * @dev See {IERC20-approve}.
-     *
-     * Requirements:
-     *
-     * - `spender` cannot be the zero address.
-     */
-    function approve(address spender, uint256 amount) public virtual override returns (bool) {
-        _approve(_msgSender(), spender, amount);
+    function transfer(address to, uint value) external ensuresRecipient(to) override returns (bool) {
+        balanceOf[msg.sender] -= value;
+        balanceOf[to] += value;
+
+        emit Transfer(msg.sender, to, value);
         return true;
     }
 
-    /**
-     * @dev See {IERC20-transferFrom}.
-     *
-     * Emits an {Approval} event indicating the updated allowance. This is not
-     * required by the EIP. See the note at the beginning of {ERC20}.
-     *
-     * Requirements:
-     *
-     * - `sender` and `recipient` cannot be the zero address.
-     * - `sender` must have a balance of at least `amount`.
-     * - the caller must have allowance for ``sender``'s tokens of at least
-     * `amount`.
-     */
-    function transferFrom(address sender, address recipient, uint256 amount) public virtual override returns (bool) {
-        _transfer(sender, recipient, amount);
-        _approve(sender, _msgSender(), _allowances[sender][_msgSender()].sub(amount, "ERC20: transfer amount exceeds allowance"));
+    function transferFrom(address from, address to, uint value) external ensuresRecipient(to) override returns (bool) {
+        if (from != msg.sender) {
+            uint _allowance = allowance[from][msg.sender];
+            if (_allowance != type(uint).max) {
+                allowance[from][msg.sender] -= value;
+            }
+        }
+
+        balanceOf[from] -= value;
+        balanceOf[to] += value;
+
+        emit Transfer(from, to, value);
         return true;
     }
 
-    /**
-     * @dev Atomically increases the allowance granted to `spender` by the caller.
-     *
-     * This is an alternative to {approve} that can be used as a mitigation for
-     * problems described in {IERC20-approve}.
-     *
-     * Emits an {Approval} event indicating the updated allowance.
-     *
-     * Requirements:
-     *
-     * - `spender` cannot be the zero address.
-     */
-    function increaseAllowance(address spender, uint256 addedValue) public virtual returns (bool) {
-        _approve(_msgSender(), spender, _allowances[_msgSender()][spender].add(addedValue));
-        return true;
+    function permit(address owner, address spender, uint value, uint deadline, uint8 v, bytes32 r, bytes32 s) external override {
+        if (block.timestamp > deadline) {
+            revert WETH_ExpiredSignature();
+        }
+        bytes32 digest = keccak256(
+            abi.encodePacked(
+                '\x19\x01',
+                DOMAIN_SEPARATOR(),
+                keccak256(abi.encode(PERMIT_TYPEHASH, owner, spender, value, nonces[owner]++, deadline))
+            )
+        );
+        address recoveredAddress = ecrecover(digest, v, r, s);
+        if (recoveredAddress != owner) {
+            revert WETH_InvalidSignature();
+        }
+        if (recoveredAddress == address(0)) {
+            revert WETH_InvalidSignature();
+        }
+        allowance[owner][spender] = value;
+        emit Approval(owner, spender, value);
     }
 
-    /**
-     * @dev Atomically decreases the allowance granted to `spender` by the caller.
-     *
-     * This is an alternative to {approve} that can be used as a mitigation for
-     * problems described in {IERC20-approve}.
-     *
-     * Emits an {Approval} event indicating the updated allowance.
-     *
-     * Requirements:
-     *
-     * - `spender` cannot be the zero address.
-     * - `spender` must have allowance for the caller of at least
-     * `subtractedValue`.
-     */
-    function decreaseAllowance(address spender, uint256 subtractedValue) public virtual returns (bool) {
-        _approve(_msgSender(), spender, _allowances[_msgSender()][spender].sub(subtractedValue, "ERC20: decreased allowance below zero"));
-        return true;
+    function permit2(address owner, address spender, uint value, uint deadline, bytes calldata signature) external override {
+        if (block.timestamp > deadline) {
+            revert WETH_ExpiredSignature();
+        }
+        bytes32 digest = keccak256(
+            abi.encodePacked(
+                '\x19\x01',
+                DOMAIN_SEPARATOR(),
+                keccak256(abi.encode(PERMIT_TYPEHASH, owner, spender, value, nonces[owner]++, deadline))
+            )
+        );
+        if (!_checkSignature(owner, digest, signature)) {
+            revert WETH_InvalidSignature();
+        }
+        allowance[owner][spender] = value;
+        emit Approval(owner, spender, value);
     }
 
-    /**
-     * @dev Moves tokens `amount` from `sender` to `recipient`.
-     *
-     * This is internal function is equivalent to {transfer}, and can be used to
-     * e.g. implement automatic token fees, slashing mechanisms, etc.
-     *
-     * Emits a {Transfer} event.
-     *
-     * Requirements:
-     *
-     * - `sender` cannot be the zero address.
-     * - `recipient` cannot be the zero address.
-     * - `sender` must have a balance of at least `amount`.
-     */
-    function _transfer(address sender, address recipient, uint256 amount) internal virtual {
-        require(sender != address(0), "ERC20: transfer from the zero address");
-        require(recipient != address(0), "ERC20: transfer to the zero address");
+    function _checkSignature(address signer, bytes32 hash, bytes memory signature) private view returns (bool) {
+        (address recoveredAddress) = _recover(hash, signature);
+        if (recoveredAddress == signer) {
+            if (recoveredAddress != address(0)) {
+                return true;
+            }
+        }
 
-        _beforeTokenTransfer(sender, recipient, amount);
-
-        _balances[sender] = _balances[sender].sub(amount, "ERC20: transfer amount exceeds balance");
-        _balances[recipient] = _balances[recipient].add(amount);
-        emit Transfer(sender, recipient, amount);
+        (bool success, bytes memory result) = signer.staticcall(
+            abi.encodeWithSelector(MAGICVALUE, hash, signature)
+        );
+        return (
+            success &&
+            result.length == 32 &&
+            abi.decode(result, (bytes32)) == bytes32(MAGICVALUE)
+        );
     }
 
-    /** @dev Creates `amount` tokens and assigns them to `account`, increasing
-     * the total supply.
-     *
-     * Emits a {Transfer} event with `from` set to the zero address.
-     *
-     * Requirements:
-     *
-     * - `to` cannot be the zero address.
-     */
-    function _mint(address account, uint256 amount) internal virtual {
-        require(account != address(0), "ERC20: mint to the zero address");
+    function _recover(bytes32 hash, bytes memory signature) private pure returns (address) {
+        if (signature.length != 65) {
+            return address(0);
+        }
 
-        _beforeTokenTransfer(address(0), account, amount);
+        bytes32 r;
+        bytes32 s;
+        uint8 v;
 
-        _totalSupply = _totalSupply.add(amount);
-        _balances[account] = _balances[account].add(amount);
-        emit Transfer(address(0), account, amount);
-    }
+        assembly {
+            r := mload(add(signature, 0x20))
+            s := mload(add(signature, 0x40))
+            v := byte(0, mload(add(signature, 0x60)))
+        }
 
-    /**
-     * @dev Destroys `amount` tokens from `account`, reducing the
-     * total supply.
-     *
-     * Emits a {Transfer} event with `to` set to the zero address.
-     *
-     * Requirements:
-     *
-     * - `account` cannot be the zero address.
-     * - `account` must have at least `amount` tokens.
-     */
-    function _burn(address account, uint256 amount) internal virtual {
-        require(account != address(0), "ERC20: burn from the zero address");
+        if (uint(s) > 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0) {
+            return address(0);
+        }
 
-        _beforeTokenTransfer(account, address(0), amount);
-
-        _balances[account] = _balances[account].sub(amount, "ERC20: burn amount exceeds balance");
-        _totalSupply = _totalSupply.sub(amount);
-        emit Transfer(account, address(0), amount);
-    }
-
-    /**
-     * @dev Sets `amount` as the allowance of `spender` over the `owner` s tokens.
-     *
-     * This internal function is equivalent to `approve`, and can be used to
-     * e.g. set automatic allowances for certain subsystems, etc.
-     *
-     * Emits an {Approval} event.
-     *
-     * Requirements:
-     *
-     * - `owner` cannot be the zero address.
-     * - `spender` cannot be the zero address.
-     */
-    function _approve(address owner, address spender, uint256 amount) internal virtual {
-        require(owner != address(0), "ERC20: approve from the zero address");
-        require(spender != address(0), "ERC20: approve to the zero address");
-
-        _allowances[owner][spender] = amount;
-        emit Approval(owner, spender, amount);
-    }
-
-    /**
-     * @dev Sets {decimals} to a value other than the default one of 18.
-     *
-     * WARNING: This function should only be called from the constructor. Most
-     * applications that interact with token contracts will not expect
-     * {decimals} to ever change, and may work incorrectly if it does.
-     */
-    function _setupDecimals(uint8 decimals_) internal {
-        _decimals = decimals_;
-    }
-
-    /**
-     * @dev Hook that is called before any transfer of tokens. This includes
-     * minting and burning.
-     *
-     * Calling conditions:
-     *
-     * - when `from` and `to` are both non-zero, `amount` of ``from``'s tokens
-     * will be to transferred to `to`.
-     * - when `from` is zero, `amount` tokens will be minted for `to`.
-     * - when `to` is zero, `amount` of ``from``'s tokens will be burned.
-     * - `from` and `to` are never both zero.
-     *
-     * To learn more about hooks, head to xref:ROOT:extending-contracts.adoc#using-hooks[Using Hooks].
-     */
-    function _beforeTokenTransfer(address from, address to, uint256 amount) internal virtual { }
-
-    function _msgSender() internal view virtual returns (address payable) {
-        return payable(msg.sender);
+        return ecrecover(hash, v, r, s);
     }
 }

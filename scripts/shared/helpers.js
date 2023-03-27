@@ -176,6 +176,82 @@ async function updateTokensPerInterval(distributor, tokensPerInterval, label) {
   await sendTxn(distributor.setTokensPerInterval(tokensPerInterval, { gasLimit: 1000000 }), `${label}.setTokensPerInterval`)
 }
 
+async function zkDeployContract(deployer, name, args, label, options) {
+  if (!options && typeof label === "object") {
+    label = null
+    options = label
+  }
+
+  let info = name
+  if (label) { info = name + ":" + label }
+  const artifact = await deployer.loadArtifact(name);
+  let contract
+  if (options) {
+    contract = await deployer.deploy(artifact, args, options)
+  } else {
+    contract = await deployer.deploy(artifact, args)
+  }
+  const argStr = args.map((i) => `"${i}"`).join(" ")
+  console.info(`Deploying ${info} ${contract.address} ${argStr}`)
+  await contract.deployTransaction.wait()
+  console.info("... Completed!")
+  return contract
+}
+
+async function verifyContract(contract, args = [], tryCnt = 1) {
+  for (let i = 0; i < tryCnt; ++i) {
+    try {
+      await hre.run(`verify:verify`, {
+        address: contract.address,
+        constructorArguments: args,
+      });
+    } catch (err) {
+      if (err.message.includes("Reason: Already Verified")) {
+        console.log("Contract is already verified!");
+      } else {
+        console.log(err)
+        await sleep(200)
+      }
+      continue;
+    }
+    break;
+  }
+}
+
+async function getOracleBlock(zkSyncProvider) {
+  const l1BatchNumber = await zkSyncProvider.getL1BatchNumber()
+  //console.log("l1BatchNumber: ", l1BatchNumber)
+
+  let batchRoot = null;
+  let timestamp = null;
+  while (true) {
+    try {
+      const getL1BatchDetails = await zkSyncProvider.send('zks_getL1BatchDetails', [l1BatchNumber]);
+      //console.log("getL1BatchDetails: ", getL1BatchDetails)
+      if (!("rootHash" in getL1BatchDetails)) {
+        await sleep(10);
+        continue;
+      }
+      if (getL1BatchDetails["rootHash"] == null) {
+        await sleep(10);
+        continue
+      }
+
+      batchRoot = getL1BatchDetails["rootHash"];
+      timestamp = getL1BatchDetails["timestamp"];
+      break;
+    } catch (err) {
+      console.log(err)
+    }
+  }
+
+  if (batchRoot == null) {
+    return null;
+  }
+
+  return {number: l1BatchNumber, timestamp: timestamp, hash: batchRoot};
+}
+
 module.exports = {
   ARBITRUM,
   AVALANCHE,
@@ -191,5 +267,8 @@ module.exports = {
   callWithRetries,
   processBatch,
   updateTokensPerInterval,
-  sleep
+  sleep,
+  zkDeployContract,
+  verifyContract,
+  getOracleBlock
 }

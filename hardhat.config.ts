@@ -5,11 +5,12 @@
 //require("hardhat-tracer");
 
 import { HardhatUserConfig } from "hardhat/config";
-import "@nomicfoundation/hardhat-toolbox";
+//import "@nomicfoundation/hardhat-toolbox";
 import "hardhat-contract-sizer";
-import "solidity-coverage";
+//import "solidity-coverage";
 import "hardhat-gas-reporter";
-import "hardhat-deploy";
+import "@matterlabs/hardhat-zksync-deploy";
+import "@matterlabs/hardhat-zksync-solc";
 
 import "@typechain/hardhat";
 import "@nomiclabs/hardhat-ethers";
@@ -39,75 +40,24 @@ import {
   MAINNET_DEPLOY_KEY
 } from "./scripts/uniperp/env.json";
 
-/*
-// This is a sample Hardhat task. To learn how to create your own go to
-// https://hardhat.org/guides/create-task.html
-task("accounts", "Prints the list of accounts", async () => {
-  const accounts = await ethers.getSigners()
+module.exports = {
+  zksolc: {
+    version: "1.3.5",
+    compilerSource: "binary",
+    settings: {},
+  },
+  defaultNetwork: "zkSyncTestnet",
 
-  for (const account of accounts) {
-    console.info(account.address)
-  }
-})*/
-
-// You need to export an object to set up your config
-// Go to https://hardhat.org/config/ to learn more
-
-/**
- * @type import('hardhat/config').HardhatUserConfig
- */
-//module.exports = {
-const config: HardhatUserConfig = {
   networks: {
-    localhost: {
-      timeout: 120000,
-      saveDeployments: true
+    goerli: {
+      url: "https://arbitrum-goerli.infura.io/v3/83a7e9ff453a41058e42d1c8cdf1cac2" // URL of the Ethereum Web3 RPC (optional)
     },
-    hardhat: {
-      saveDeployments: true,
-      allowUnlimitedContractSize: true
+    zkSyncTestnet: {
+      url: "https://zksync2-testnet.zksync.dev",
+      ethNetwork: "goerli", // Can also be the RPC URL of the network (e.g. `https://goerli.infura.io/v3/<API_KEY>`)
+      zksync: true,
+      verifyURL: "https://zksync2-testnet-explorer.zksync.dev/contract_verification",
     },
-    bsc: {
-      url: BSC_URL,
-      chainId: 56,
-      gasPrice: 10000000000,
-      accounts: [BSC_DEPLOY_KEY]
-    },
-    testnet: {
-      url: BSC_TESTNET_URL,
-      chainId: 97,
-      gasPrice: 20000000000,
-      accounts: [BSC_TESTNET_DEPLOY_KEY]
-    },
-    arbitrumGoerli: {
-      url: ARBITRUM_TESTNET_URL,
-      gasPrice: 80000000000,
-      chainId: 421613,
-      accounts: [ARBITRUM_TESTNET_DEPLOY_KEY]
-    },
-    arbitrum: {
-      url: ARBITRUM_URL,
-      gasPrice: 30000000000,
-      chainId: 42161,
-      accounts: [ARBITRUM_DEPLOY_KEY]
-    },
-    avax: {
-      url: AVAX_URL,
-      gasPrice: 200000000000,
-      chainId: 43114,
-      accounts: [AVAX_DEPLOY_KEY]
-    },
-    polygon: {
-      url: POLYGON_URL,
-      gasPrice: 100000000000,
-      chainId: 137,
-      accounts: [POLYGON_DEPLOY_KEY]
-    },
-    mainnet: {
-      url: MAINNET_URL,
-      gasPrice: 50000000000,
-      accounts: [MAINNET_DEPLOY_KEY]
-    }
   },
   etherscan: {
     apiKey: {
@@ -120,7 +70,7 @@ const config: HardhatUserConfig = {
     }
   },
   solidity: {
-    version: "0.8.16",
+    version: "0.8.17",
     settings: {
       viaIR: true,
       optimizer: {
@@ -137,5 +87,3 @@ const config: HardhatUserConfig = {
     target: "ethers-v5",
   },
 }
-
-export default config;

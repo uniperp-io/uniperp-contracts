@@ -25,6 +25,7 @@ contract VaultUtils is IVaultUtils, Governable {
     event UpdateFundingRate(address token, uint256 fundingRate);
     uint256 public constant MIN_FUNDING_RATE_INTERVAL = 1 hours;
     uint256 public constant MAX_FUNDING_RATE_FACTOR = 10000; // 1%
+    uint256 public constant PRICE_PRECISION = 10 ** 30;
 
     uint256 public override maxLeverage = 50 * 10000; // 50x
     mapping (address => uint256) public override maxLeverages;
@@ -41,6 +42,7 @@ contract VaultUtils is IVaultUtils, Governable {
     // lastFundingTimes tracks the last time funding was updated for a token
     mapping (address => uint256) public override lastFundingTimes;
     mapping (address => bool) public isVault;
+    uint256 public override maxGasPrice;
 
     uint256 public override fundingInterval = 8 hours;
     uint256 public override fundingRateFactor;
@@ -63,6 +65,10 @@ contract VaultUtils is IVaultUtils, Governable {
     function initialize(uint256 _fundingRateFactor, uint256 _stableFundingRateFactor) external onlyGov {
         fundingRateFactor = _fundingRateFactor;
         stableFundingRateFactor = _stableFundingRateFactor;
+    }
+
+    function setMaxGasPrice(uint256 _maxGasPrice) external override onlyGov {
+        maxGasPrice = _maxGasPrice;
     }
 
     function setMaxLeverage(uint256 _maxLeverage) external override onlyGov {
@@ -137,12 +143,14 @@ contract VaultUtils is IVaultUtils, Governable {
     }
 
     function validateIncreasePosition(address /* _account */, address  _collateralToken, address  _indexToken, uint256 /* _sizeDelta */, bool /* _isLong */) external override view {
+        _validateGasPrice();
         // no additional validations
         require(isTradable[_collateralToken], "notTrade1");
         require(isTradable[_indexToken], "notTrade2");
     }
 
     function validateDecreasePosition(address /* _account */, address _collateralToken, address  _indexToken, uint256 /* _collateralDelta */, uint256 /* _sizeDelta */, bool /* _isLong */, address /* _receiver */) external override view {
+        _validateGasPrice();
         // no additional validations
         require(isTradable[_collateralToken], "notTrade3");
         require(isTradable[_indexToken], "notTrade4");
@@ -371,6 +379,36 @@ contract VaultUtils is IVaultUtils, Governable {
         return _usdAmount.mul(10 ** decimals).div(_price);
     }
 
+    function processBuyUSDG(address _token, uint256 tokenAmount, address usdg) public onlyVault returns (uint256, uint256) {
+        vault.validateManager();
+        _validate(vault.whitelistedTokens(_token), 16);
+        //useSwapPricing = true;
+        _validate(tokenAmount > 0, 17);
+
+        updateCumulativeFundingRate(_token, _token);
+
+        uint256 price = vault.getMinPrice(_token);
+
+        uint256 usdgAmount = tokenAmount.mul(price).div(PRICE_PRECISION);
+        usdgAmount = vault.adjustForDecimals(usdgAmount, _token, usdg);
+        _validate(usdgAmount > 0, 18);
+
+        uint256 feeBasisPoints = getBuyUsdgFeeBasisPoints(_token, usdgAmount);
+
+        return (price, feeBasisPoints);
+    }
+
+    function calcMarginFees(address _account, address _collateralToken, address _indexToken, bool _isLong, uint256 _sizeDelta, uint256 _size, uint256 _entryFundingRate) public view returns (uint256, uint256) {
+        uint256 feeUsd = getPositionFee(_account, _collateralToken, _indexToken, _isLong, _sizeDelta);
+
+        uint256 fundingFee = getFundingFee(_account, _collateralToken, _indexToken, _isLong, _size, _entryFundingRate);
+        feeUsd = feeUsd.add(fundingFee);
+
+        uint256 feeTokens = vault.usdToTokenMin(_collateralToken, feeUsd);
+
+        return (feeUsd, feeTokens);
+    }
+
     function getRedemptionCollateral(address _token) public view returns (uint256) {
         if (vault.stableTokens(_token)) {
             return vault.poolAmounts(_token);
@@ -421,6 +459,12 @@ contract VaultUtils is IVaultUtils, Governable {
     function setError(uint256 _errorCode, string calldata _error) external override {
         require(msg.sender == errorController, "VIEC");
         errors[_errorCode] = _error;
+    }
+
+    // we have this validation as a function instead of a modifier to reduce contract size
+    function _validateGasPrice() private view {
+        if (maxGasPrice == 0) { return; }
+        _validate(tx.gasprice <= maxGasPrice, 55);
     }
 
     function _validate(bool _condition, uint256 _errorCode) private view {
