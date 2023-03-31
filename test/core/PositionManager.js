@@ -675,11 +675,6 @@ describe("PositionManager core", function () {
         {value: executionFee}
       );
     }
-
-    await createIncreaseOrder()
-    let orderIndex = (await orderBook.increaseOrdersIndex(user0.address)) - 1
-    expect(await positionManager.isOrderKeeper(user1.address)).to.be.false
-
     let feedTokens = [dai.address, btc.address];
     let precisions = [26, 26];
     let minPrices = [Math.trunc(1 *10**4), Math.trunc(59001 *10**4)];
@@ -687,6 +682,11 @@ describe("PositionManager core", function () {
 
     //usdc, usdt
     let priceFeedTokens = [];
+
+    await createIncreaseOrder()
+    let orderIndex = (await orderBook.increaseOrdersIndex(user0.address)) - 1
+    expect(await positionManager.isOrderKeeper(user1.address)).to.be.false
+
     let oracleParam = await prepareOracleParam(feedTokens, precisions, minPrices, maxPrices, priceFeedTokens, await getOracleBlock(provider))
     expect(oracleParam).to.not.be.null;
     await expect(positionManager.connect(user1).executeIncreaseOrder(user0.address, orderIndex, user1.address, oracleParam))
@@ -760,6 +760,7 @@ describe("PositionManager core", function () {
     expect(oracleParam).to.not.be.null;
     await positionManager.connect(user1).executeIncreaseOrder(user0.address, orderIndex, user1.address, oracleParam)
 
+    await positionManager.setOrderKeeper(user1.address, true)
     await createIncreaseOrder(expandDecimals(100, 18), toUsd(100), false)
     orderIndex = (await orderBook.increaseOrdersIndex(user0.address)) - 1
     oracleParam = await prepareOracleParam(feedTokens, precisions, minPrices, maxPrices, priceFeedTokens, await getOracleBlock(provider))

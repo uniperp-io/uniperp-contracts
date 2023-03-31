@@ -151,6 +151,32 @@ function getBtcConfig(btc, btcPriceFeed) {
   ]
 }
 
+function getEurConfig(eur, eurPriceFeed) {
+  return [
+    eur.address, // _token
+    18, // _tokenDecimals
+    10000, // _tokenWeight
+    75, // _minProfitBps
+    0, // _maxUsdgAmount
+    false, // _isStable
+    true, // _isShortable
+    true // _isSynthetic
+  ]
+}
+
+function getJpyConfig(jpy, jpyPriceFeed) {
+  return [
+    jpy.address, // _token
+    18, // _tokenDecimals
+    10000, // _tokenWeight
+    75, // _minProfitBps
+    0, // _maxUsdgAmount
+    false, // _isStable
+    true, // _isShortable
+    true // _isSynthetic
+  ]
+}
+
 function getDaiConfig(dai, daiPriceFeed) {
   return [
     dai.address, // _token
@@ -171,5 +197,7 @@ module.exports = {
   getBnbConfig,
   getBtcConfig,
   getEthConfig,
+  getEurConfig,
+  getJpyConfig,
   getDaiConfig
 }

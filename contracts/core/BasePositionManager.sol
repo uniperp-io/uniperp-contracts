@@ -180,35 +180,32 @@ contract BasePositionManager is IBasePositionManager, ReentrancyGuard, Governabl
 
     function _validateSyntheticMaxGlobalSize(address _indexToken, bool _isLong, uint256 _sizeDelta) internal view {
         address stableTokenAddr = IVault(vault).syntheticStableToken();
-
         uint256 usedTotalLongSize = getSyntheticTotalGuaranteedUsd();
         uint256 usedTotalShortSize = getSyntheticTotalGlobalShortSizes();
 
         if (_isLong) {
             //check total
-            //uint256 totalMaxLongSize = getSyntheticTotalMaxGlobalLongSize();
             uint256 totalMaxLongSize = maxGlobalLongSizes[stableTokenAddr];
             if (totalMaxLongSize > 0 && usedTotalLongSize.add(_sizeDelta) > totalMaxLongSize) {
-                revert("BasePositionManager: synthetic max global longs exceeded");
+                revert("BasePositionManager: synthetic max global longs exceeded1");
             }
             
             //then check individual
             uint256 maxGlobalLongSize = maxGlobalLongSizes[_indexToken];
             if (maxGlobalLongSize > 0 && IVault(vault).guaranteedUsd(_indexToken).add(_sizeDelta) > maxGlobalLongSize) {
-                revert("BasePositionManager: synthetic max global longs exceeded");
+                revert("BasePositionManager: synthetic max global longs exceeded2");
             }
         } else {
             //check total
-            //uint256 totalMaxShortSize = getSyntheticTotalMaxGlobalShortSize();
             uint256 totalMaxShortSize = maxGlobalShortSizes[stableTokenAddr];
             if (totalMaxShortSize > 0 && usedTotalShortSize.add(_sizeDelta) > totalMaxShortSize) {
-                revert("BasePositionManager: synthetic max global shorts exceeded");
+                revert("BasePositionManager: synthetic max global shorts exceeded1");
             }
             
             //then check individual
             uint256 maxGlobalShortSize = maxGlobalShortSizes[_indexToken];
             if (maxGlobalShortSize > 0 && IVault(vault).globalShortSizes(_indexToken).add(_sizeDelta) > maxGlobalShortSize) {
-                revert("BasePositionManager: synthetic max global shorts exceeded");
+                revert("BasePositionManager: synthetic max global shorts exceeded2");
             }
         }
 
@@ -216,10 +213,10 @@ contract BasePositionManager is IBasePositionManager, ReentrancyGuard, Governabl
         uint256 stableTokenAmountUsd = IVault(vault).tokenToUsdMin(stableTokenAddr, stableTokenAmount);
         uint256 maxAmountUsd = stableTokenAmountUsd.mul(IVault(vault).usdcSharesForSyntheticAsset()).div(MAX_USDC_SHARES_SYNTHETIC_ASSET);
 
-        //as usedTotalShortSize include collateral, so syntheticUsedUsdcUsd is large then actually borrowed usdc size
-        uint256 syntheticUsedUsdcUsd = usedTotalLongSize.add(usedTotalShortSize);
+        //as usedTotalShortSize include collateral, so syntheticUsedUsdcUsd is large than actually borrowed usdc size
+        uint256 syntheticUsedUsdcUsd = usedTotalLongSize.add(usedTotalShortSize).add(_sizeDelta);
         if (syntheticUsedUsdcUsd > maxAmountUsd) {
-            revert("BasePositionManager: synthetic max global shorts exceeded");
+            revert("BasePositionManager: syntheticUsedUsdcUsd exceeded");
         }
     }
 
@@ -398,38 +395,15 @@ contract BasePositionManager is IBasePositionManager, ReentrancyGuard, Governabl
         return nextLeverage < prevLeverage;
     }
 
-    function getSyntheticTotalMaxGlobalLongSize() public view returns (uint256) {
-        IVault _vault = IVault(vault);
-        uint256 cnt = _vault.allSyntheticTokensLength();
-        
-        uint256 total;        
-        for (uint256 i = 0; i < cnt; i++) {
-            address synTokenAddr = _vault.allSyntheticTokens(i);
-            total = total.add(maxGlobalLongSizes[synTokenAddr]);
-        }
-
-        return total;
-    }
-
-    function getSyntheticTotalMaxGlobalShortSize() public view returns (uint256) {
-        IVault _vault = IVault(vault);
-        uint256 cnt = _vault.allSyntheticTokensLength();
-        uint256 total;        
-        for (uint256 i = 0; i < cnt; i++) {
-            address synTokenAddr = _vault.allSyntheticTokens(i);
-            total = total.add(maxGlobalShortSizes[synTokenAddr]);
-        }
-
-        return total;
-    }
-
     function getSyntheticTotalGuaranteedUsd() public view returns (uint256) {
         uint256 total;
         IVault _vault = IVault(vault);
         uint256 cnt = _vault.allSyntheticTokensLength();
         for (uint256 i = 0; i < cnt; i++) {
             address synTokenAddr = _vault.allSyntheticTokens(i);
-            total = total.add(_vault.guaranteedUsd(synTokenAddr));
+            if (_vault.syntheticTokens(synTokenAddr)) {
+                total = total.add(_vault.guaranteedUsd(synTokenAddr));
+            }
         }
 
         return total;
@@ -441,7 +415,9 @@ contract BasePositionManager is IBasePositionManager, ReentrancyGuard, Governabl
         uint256 cnt = _vault.allSyntheticTokensLength();
         for (uint256 i = 0; i < cnt; i++) {
             address synTokenAddr = _vault.allSyntheticTokens(i);
-            total = total.add(_vault.globalShortSizes(synTokenAddr));
+            if (_vault.syntheticTokens(synTokenAddr)) {
+                total = total.add(_vault.globalShortSizes(synTokenAddr));
+            }
         }
 
         return total;
