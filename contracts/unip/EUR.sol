@@ -2,9 +2,9 @@
 
 pragma solidity ^0.8.0;
 
-import "../tokens/FaucetToken.sol";
+import "../tokens/BaseToken.sol";
 
-contract EUR is FaucetToken {
-    constructor() FaucetToken("UPERP EUR", "EUR", 18, 50000000000000000000000) {
+contract EUR is BaseToken {
+    constructor() BaseToken("Uniperp EUR", "EUR", 1) {
     }
 }

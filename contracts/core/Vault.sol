@@ -12,6 +12,7 @@ import "./interfaces/IVault.sol";
 import "./interfaces/IVaultUtils.sol";
 import "./interfaces/IVaultPriceFeedLess.sol";
 import "../oracle/interfaces/IOracle.sol";
+//import "hardhat/console.sol";
 
 contract Vault is ReentrancyGuard, IVault {
     using SafeMath for uint256;
@@ -213,14 +214,6 @@ contract Vault is ReentrancyGuard, IVault {
     event IncreaseGuaranteedUsd(address token, uint256 amount);
     event DecreaseGuaranteedUsd(address token, uint256 amount);
 
-    modifier withOraclePrices(address _oracle) {
-	    require(_oracle != address(0), "OZA");
-        oracle = _oracle;
-		isToUseOraclePrice = true;
-        _;
-		isToUseOraclePrice = false;
-    }
-
     // once the parameters are verified to be working correctly,
     // gov should be set to a timelock contract or a governance contract
     constructor() {
@@ -241,6 +234,11 @@ contract Vault is ReentrancyGuard, IVault {
         usdg = _usdg;
         priceFeed = _priceFeed;
         liquidationFeeUsd = _liquidationFeeUsd;
+    }
+
+    function setOracle(address _oracle) external override {
+        _onlyGov();
+        oracle = _oracle;
     }
 
     function setOrderBook(address _orderbook) external override {
@@ -304,6 +302,11 @@ contract Vault is ReentrancyGuard, IVault {
     function setIsLeverageEnabled(bool _isLeverageEnabled) external override {
         _onlyGov();
         isLeverageEnabled = _isLeverageEnabled;
+    }
+
+    function setIsToUseOraclePrice(bool _isToUseOraclePrice) external override {
+        _onlyGov();
+        isToUseOraclePrice = _isToUseOraclePrice;
     }
 
     function setIsSyntheticTradeEnabled(bool _isSyntheticTradeEnabled) external override {
@@ -547,11 +550,6 @@ contract Vault is ReentrancyGuard, IVault {
         return amountOut;
     }
 
-    function swapV2(address _tokenIn, address _tokenOut, address _receiver, address _oracle) external override withOraclePrices(_oracle) returns (uint256) {
-        require(msg.sender == orderBook, "swNotOb");
-        return swap(_tokenIn, _tokenOut, _receiver);
-    }
-
     function swap(address _tokenIn, address _tokenOut, address _receiver) public override nonReentrant returns (uint256) {
         _validate(isSwapEnabled, 23);
         vaultUtils.validateSwap(_tokenIn, _tokenOut);
@@ -590,11 +588,6 @@ contract Vault is ReentrancyGuard, IVault {
 
         useSwapPricing = false;
         return amountOutAfterFees;
-    }
-
-    function increasePositionV2(address _account, address _collateralToken, address _indexToken, uint256 _sizeDelta, bool _isLong, address _oracle) external override withOraclePrices(_oracle) {
-        require(msg.sender == orderBook, "incNotOb");
-        increasePosition(_account, _collateralToken, _indexToken, _sizeDelta, _isLong);        
     }
 
     function increasePosition(address _account, address _collateralToken, address _indexToken, uint256 _sizeDelta, bool _isLong) public override nonReentrant {
@@ -684,11 +677,6 @@ contract Vault is ReentrancyGuard, IVault {
 
         emit IncreasePosition(key, _account, _collateralToken, _indexToken, collateralDeltaUsd, _sizeDelta, _isLong, price, fee);
         emit UpdatePosition(key, position.size, position.collateral, position.averagePrice, position.entryFundingRate, position.reserveAmount, position.realisedPnl, price);
-    }
-
-    function decreasePositionV2(address _account, address _collateralToken, address _indexToken, uint256 _collateralDelta, uint256 _sizeDelta, bool _isLong, address _receiver, address _oracle) external override withOraclePrices(_oracle) returns (uint256) {
-        require(msg.sender == orderBook, "decNotOb");
-        return decreasePosition(_account, _collateralToken, _indexToken, _collateralDelta, _sizeDelta, _isLong, _receiver);
     }
 
     function decreasePosition(address _account, address _collateralToken, address _indexToken, uint256 _collateralDelta, uint256 _sizeDelta, bool _isLong, address _receiver) public override nonReentrant returns (uint256) {
@@ -847,6 +835,7 @@ contract Vault is ReentrancyGuard, IVault {
 			return IOracle(oracle).getMaxPrice(_token);
 		}
 
+        //console.log("getMaxPrice use priceFeed data");
         return IVaultPriceFeedLess(priceFeed).getPrice(_token, true, includeAmmPrice, useSwapPricing);
     }
 
@@ -855,6 +844,7 @@ contract Vault is ReentrancyGuard, IVault {
 			return IOracle(oracle).getMinPrice(_token);
 		}
 
+        //console.log("getMinPrice use priceFeed data");
         return IVaultPriceFeedLess(priceFeed).getPrice(_token, false, includeAmmPrice, useSwapPricing);
     }
 

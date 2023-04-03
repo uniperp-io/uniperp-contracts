@@ -281,6 +281,10 @@ contract Timelock is ITimelock {
         IVault(_vault).setIsLeverageEnabled(_isLeverageEnabled);
     }
 
+    function setIsToUseOraclePrice(address _vault, bool _isToUseOraclePrice) external override onlyHandlerAndAbove {
+        IVault(_vault).setIsToUseOraclePrice(_isToUseOraclePrice);
+    }
+
     function setIsSyntheticTradeEnabled(address _vault, bool _isSyntheticTradeEnabled) external override onlyHandlerAndAbove {
         IVault(_vault).setIsSyntheticTradeEnabled(_isSyntheticTradeEnabled);
     }

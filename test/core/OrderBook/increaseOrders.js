@@ -130,7 +130,8 @@ describe("OrderBook, increase position orders", function () {
         await oracle.setPositionManager(wallet.address, true)
         await oracle.setPositionManager(user0.address, true)
         await oracle.setPositionManager(user1.address, true)
-
+        await vault.setOracle(oracle.address)
+        
         const fixture = await deployFixture();
         //const { oracleSalt, signerIndexes } = fixture.props;
         const oracleSigners = await getSigners(fixture)

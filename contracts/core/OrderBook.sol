@@ -512,10 +512,10 @@ contract OrderBook is ReentrancyGuard, IOrderBook {
 
         uint256 _amountOut;
         if (order.path[order.path.length - 1] == weth && order.shouldUnwrap) {
-            _amountOut = _swapV2(order.path, order.minOut, address(this), _oracle);
+            _amountOut = _swap(order.path, order.minOut, address(this));
             _transferOutETH(_amountOut, payable(order.account));
         } else {
-            _amountOut = _swapV2(order.path, order.minOut, order.account, _oracle);
+            _amountOut = _swap(order.path, order.minOut, order.account);
         }
 
         // pay executor
@@ -785,13 +785,11 @@ contract OrderBook is ReentrancyGuard, IOrderBook {
             path[0] = order.purchaseToken;
             path[1] = order.collateralToken;
 
-            //TODO use _swap or _swapV2 ? may be _swap, as user only care about triggerPrice of the indexToken?
-            //just use _swapV2, so that price comes from the same block's observation. 2023/3/2
-            uint256 amountOut = _swapV2(path, 0, address(this), _oracle);
+            uint256 amountOut = _swap(path, 0, address(this));
             IERC20(order.collateralToken).safeTransfer(vault, amountOut);
         }
 
-        IVault(vault).increasePositionV2(order.account, order.collateralToken, order.indexToken, order.sizeDelta, order.isLong, _oracle);
+        IVault(vault).increasePosition(order.account, order.collateralToken, order.indexToken, order.sizeDelta, order.isLong);
 
         // pay executor
         _transferOutETH(order.executionFee, _feeReceiver);
@@ -908,15 +906,14 @@ contract OrderBook is ReentrancyGuard, IOrderBook {
 
         delete decreaseOrders[_address][_orderIndex];
 
-        uint256 amountOut = IVault(vault).decreasePositionV2(
+        uint256 amountOut = IVault(vault).decreasePosition(
             order.account,
             order.collateralToken,
             order.indexToken,
             order.collateralDelta,
             order.sizeDelta,
             order.isLong,
-            address(this),
-            _oracle
+            address(this)
         );
 
         // transfer released collateral to user
@@ -1035,26 +1032,4 @@ contract OrderBook is ReentrancyGuard, IOrderBook {
         require(amountOut >= _minOut, "OrderBook: insufficient amountOut");
         return amountOut;
     }
-
-    function _swapV2(address[] memory _path, uint256 _minOut, address _receiver, address _oracle) private returns (uint256) {
-        if (_path.length == 2) {
-            return _vaultSwapV2(_path[0], _path[1], _minOut, _receiver, _oracle);
-        }
-        if (_path.length == 3) {
-            uint256 midOut = _vaultSwapV2(_path[0], _path[1], 0, address(this), _oracle);
-            IERC20(_path[1]).safeTransfer(vault, midOut);
-            return _vaultSwapV2(_path[1], _path[2], _minOut, _receiver, _oracle);
-        }
-
-        revert("OrderBook: invalid _path.length");
-    }
-
-    function _vaultSwapV2(address _tokenIn, address _tokenOut, uint256 _minOut, address _receiver, address _oracle) private returns (uint256) {
-        require(_tokenIn != usdg, "_tokenIn can not be usdt");
-        require(_tokenOut != usdg, "_tokenOut can not be usdt");
-
-        uint256 amountOut = IVault(vault).swapV2(_tokenIn, _tokenOut, _receiver, _oracle);
-        require(amountOut >= _minOut, "OrderBook: insufficient amountOut");
-        return amountOut;
-    }    
 }

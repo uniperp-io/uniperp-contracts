@@ -119,6 +119,7 @@ describe("SyntheticPositionManager", function () {
     oracle = await deployContract("Oracle", [])
     oracleStore = await deployContract("OracleStore", [])
     await oracle.setOracleStore(oracleStore.address)
+    await vault.setOracle(oracle.address)
 
     const fixture = await deployFixture();
     //const { oracleSalt, signerIndexes } = fixture.props;
@@ -190,10 +191,7 @@ describe("SyntheticPositionManager", function () {
     }
   })
 
-  it("Synthetic_increasePositionV2", async () => {
-    await expect(vault.connect(user1).increasePositionV2(user0.address, dai.address, eur.address, toUsd(100), true, oracle.address))
-    .to.be.revertedWith("incNotOb")
-
+  it("Synthetic_increasePosition", async () => {
     const timelock = await deployTimelock()
     await vault.setGov(timelock.address)
     await timelock.setContractHandler(positionManager.address, true)
@@ -436,11 +434,6 @@ describe("SyntheticPositionManager", function () {
     const expectReservedAmounts = await vault.usdToTokenMax(dai.address, sizeDelta);
     expect(await vault.reservedAmounts(dai.address)).eq(expectReservedAmounts)
     expect(await vault.globalShortSizes(eur.address)).eq(sizeDelta)
-  })
-
-  it("Synthetic_decreasePositionV2", async () => {
-    await expect(vault.connect(user1).decreasePositionV2(user0.address, dai.address, eur.address, toUsd(100), toUsd(100), true, user1.address, oracle.address))
-    .to.be.revertedWith("decNotOb")
   })
 
   it("Synthetic_executeDecreaseLongOrder", async () => {

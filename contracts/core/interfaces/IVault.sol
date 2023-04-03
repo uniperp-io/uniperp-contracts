@@ -11,6 +11,7 @@ interface IVault {
     function isToUseOraclePrice() external view returns (bool);
     function isSyntheticTradeEnabled() external view returns (bool);
 
+    function setOracle(address _oracle) external;
     function setOrderBook(address _account) external;
     function setSyntheticStableToken(address _syntheticStableToken) external;
     function setVaultUtils(IVaultUtils _vaultUtils) external;
@@ -47,6 +48,7 @@ interface IVault {
     function setManager(address _manager, bool _isManager) external;
     function setIsSwapEnabled(bool _isSwapEnabled) external;
     function setIsLeverageEnabled(bool _isLeverageEnabled) external;
+    function setIsToUseOraclePrice(bool _isToUseOraclePrice) external;
     function setIsSyntheticTradeEnabled(bool _isSyntheticTradeEnabled) external;
     function setUsdcSharesForSyntheticAsset(uint256 _usdcSharesForSyntheticAsset) external;
     function setMaxGasPrice(uint256 _maxGasPrice) external;
@@ -86,13 +88,8 @@ interface IVault {
     function buyUSDG(address _token, address _receiver) external returns (uint256);
     function sellUSDG(address _token, address _receiver) external returns (uint256);
 
-    function swapV2(address _tokenIn, address _tokenOut, address _receiver, address _oracle) external returns (uint256);
     function swap(address _tokenIn, address _tokenOut, address _receiver) external returns (uint256);
-    
-    function increasePositionV2(address _account, address _collateralToken, address _indexToken, uint256 _sizeDelta, bool _isLong, address _oracle) external;
     function increasePosition(address _account, address _collateralToken, address _indexToken, uint256 _sizeDelta, bool _isLong) external;
-    
-    function decreasePositionV2(address _account, address _collateralToken, address _indexToken, uint256 _collateralDelta, uint256 _sizeDelta, bool _isLong, address _receiver, address _oracle) external returns (uint256);    
     function decreasePosition(address _account, address _collateralToken, address _indexToken, uint256 _collateralDelta, uint256 _sizeDelta, bool _isLong, address _receiver) external returns (uint256);
 
     function validateLiquidation(address _account, address _collateralToken, address _indexToken, bool _isLong, bool _raise) external view returns (uint256, uint256);

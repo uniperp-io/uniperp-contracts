@@ -104,6 +104,7 @@ describe("PositionManager core", function () {
     oracle = await deployContract("Oracle", [])
     oracleStore = await deployContract("OracleStore", [])
     await oracle.setOracleStore(oracleStore.address)
+    await vault.setOracle(oracle.address)
 
     const fixture = await deployFixture();
     //const { oracleSalt, signerIndexes } = fixture.props;
@@ -604,6 +605,10 @@ describe("PositionManager core", function () {
   })
 
   it("executeSwapOrder", async () => {
+    const timelock = await deployTimelock()
+    await vault.setGov(timelock.address)
+    await timelock.setContractHandler(positionManager.address, true)
+
     await dai.mint(user0.address, expandDecimals(1000, 18))
     await dai.connect(user0).approve(router.address, expandDecimals(100, 18))
     await orderBook.connect(user0).createSwapOrder(
@@ -943,6 +948,7 @@ describe("PositionManager next short data calculations", function () {
     oracle = await deployContract("Oracle", [])
     oracleStore = await deployContract("OracleStore", [])
     await oracle.setOracleStore(oracleStore.address)
+    await vault.setOracle(oracle.address)
 
     const fixture = await deployFixture();
     //const { oracleSalt, signerIndexes } = fixture.props;
@@ -1381,7 +1387,6 @@ describe("PositionManager next short data calculations", function () {
     expect(globalDelta[1], "delta").to.be.lt(10)
     expect(await shortsTracker.globalShortAveragePrices(btc.address), "global avg price").to.be.eq("59999999999999999999999999999999998")
   })
-
 
   it("updates global short average prices on multiple hard liquidations", async () => {
     // open pos A 100k/50k at 60000
