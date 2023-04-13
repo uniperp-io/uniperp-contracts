@@ -10,7 +10,7 @@ import "../libraries/utils/ReentrancyGuard.sol";
 
 contract IDO is ReentrancyGuard, Ownable {
     using SafeERC20 for IERC20;
-    using SafeMath for uint;
+    using SafeMath for uint256;
 
     IERC20 public unipToken;
     IERC20 public USDCtoken;
@@ -137,8 +137,9 @@ contract IDO is ReentrancyGuard, Ownable {
     }
 
     function claimTokens() external nonReentrant {
-        require(endTime <= block.timestamp, "IDO sale not ended");
-        require(purchasedAmounts[msg.sender] > 0, "not token to claim");
+        require(endTime <= block.timestamp, "IDO sale not finish yet");
+        require(purchasedAmounts[msg.sender] > 0, "no token to claim");
+        require(purchasedAmounts[msg.sender] > claimedAmounts[msg.sender], "all token already claimed");
 
         if (claimedAmounts[msg.sender] != 0) {
             uint256 timeSinceLastClaim = block.timestamp - lastClaimedTime[msg.sender];
@@ -149,7 +150,13 @@ contract IDO is ReentrancyGuard, Ownable {
             }
         }
 
-        uint256 tokensToClaim = purchasedAmounts[msg.sender].div(30);
+        uint256 shareToClaimEveryTime = purchasedAmounts[msg.sender].div(30);
+
+        uint256 tokensToClaim = shareToClaimEveryTime;
+        if (claimedAmounts[msg.sender] + shareToClaimEveryTime < purchasedAmounts[msg.sender]
+         && claimedAmounts[msg.sender] + shareToClaimEveryTime.mul(2) > purchasedAmounts[msg.sender]) {
+            tokensToClaim = purchasedAmounts[msg.sender].sub(claimedAmounts[msg.sender]);
+        }
         require(claimedAmounts[msg.sender] + tokensToClaim <= purchasedAmounts[msg.sender], "purchasedAmounts < claimedAmounts");
 
         lastClaimedTime[msg.sender] = block.timestamp;

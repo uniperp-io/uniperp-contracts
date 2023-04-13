@@ -76,10 +76,10 @@ describe("IdoFunction", function () {
     await ido.connect(wallet).setEndTime(await getBlockTime(provider) + 1000)
 
     let toBuyUsdcAmount = expandDecimals(9, 6)
-    await expect(ido.connect(user0).buyTokens(toBuyUsdcAmount)).to.be.revertedWith("Contribution not much")
+    await expect(ido.connect(user0).buyTokens(toBuyUsdcAmount)).to.be.revertedWith("Contribution too small or too large")
 
     toBuyUsdcAmount = expandDecimals(50000001, 6)
-    await expect(ido.connect(user0).buyTokens(toBuyUsdcAmount)).to.be.revertedWith("Contribution not much")
+    await expect(ido.connect(user0).buyTokens(toBuyUsdcAmount)).to.be.revertedWith("Contribution too small or too large")
 
     toBuyUsdcAmount = expandDecimals(200, 6)
     console.log("user0 addr: ", user0.address)
@@ -101,7 +101,11 @@ describe("IdoFunction", function () {
     await ido.connect(wallet).setEndTime(await getBlockTime(provider) + 3)
     console.log("endTime: ", await ido.endTime())
 
+    //let moreBuyUsdcAmount = expandDecimals(6000, 6)
     let moreBuyUsdcAmount = expandDecimals(32311, 6)
+    //let moreBuyUsdcAmount = expandDecimals(10, 6)
+    //let moreBuyUsdcAmount = expandDecimals(30, 6)
+
     await ido.connect(user0).buyTokens(moreBuyUsdcAmount)
     expect(await ido.totalContributed()).eq(moreBuyUsdcAmount)
 
