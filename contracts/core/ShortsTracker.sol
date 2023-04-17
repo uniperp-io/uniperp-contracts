@@ -75,6 +75,19 @@ contract ShortsTracker is Governable, IShortsTracker {
         emit GlobalShortDataUpdated(_indexToken, globalShortSize, globalShortAveragePrice);
     }
 
+    function getGlobalShortDelta(address _token, uint256 _price) public view returns (bool, uint256) {
+        uint256 size = vault.globalShortSizes(_token);
+        uint256 averagePrice = globalShortAveragePrices[_token];
+        if (size == 0) { return (false, 0); }
+
+        uint256 nextPrice = _price;
+        uint256 priceDelta = averagePrice > nextPrice ? averagePrice.sub(nextPrice) : nextPrice.sub(averagePrice);
+        uint256 delta = size.mul(priceDelta).div(averagePrice);
+        bool hasProfit = averagePrice > nextPrice;
+
+        return (hasProfit, delta);
+    }
+
     function setInitData(address[] calldata _tokens, uint256[] calldata _averagePrices) override external onlyGov {
         require(!isGlobalShortDataReady, "ShortsTracker: already migrated");
 

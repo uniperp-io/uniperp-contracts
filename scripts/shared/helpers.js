@@ -94,7 +94,7 @@ async function callWithRetries(func, args, retriesCount = 3) {
   }
 }
 
-async function deployContract(name, args, label, options) {
+async function deployContract(name, args, label, options=null, signer=null) {
   if (!options && typeof label === "object") {
     label = null
     options = label
@@ -102,7 +102,12 @@ async function deployContract(name, args, label, options) {
 
   let info = name
   if (label) { info = name + ":" + label }
-  const contractFactory = await ethers.getContractFactory(name)
+  let contractFactory = null
+  if (signer) {
+    contractFactory = await ethers.getContractFactory(name, signer)
+  } else {
+    contractFactory = await ethers.getContractFactory(name)
+  }
   let contract
   if (options) {
     contract = await contractFactory.deploy(...args, options)

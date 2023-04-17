@@ -33,7 +33,7 @@ contract TokenManager is ReentrancyGuard {
     event SignAction(bytes32 action, uint256 nonce);
     event ClearAction(bytes32 action, uint256 nonce);
 
-    constructor(uint256 _minAuthorizations) public {
+    constructor(uint256 _minAuthorizations) {
         admin = msg.sender;
         minAuthorizations = _minAuthorizations;
     }

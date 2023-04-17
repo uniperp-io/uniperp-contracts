@@ -63,7 +63,7 @@ contract FaucetToken is IERC20 {
         string memory symbol,
         uint8 decimals,
         uint256 dropletAmount
-    ) public {
+    ) {
         _name = name;
         _symbol = symbol;
         _decimals = decimals;

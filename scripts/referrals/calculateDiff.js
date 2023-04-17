@@ -53,8 +53,8 @@ async function main() {
   }
 
   const output = {
-    gmxPrice: baseData.gmxPrice,
-    esgmxRewards: baseData.esgmxRewards,
+    unipPrice: baseData.unipPrice,
+    esunipRewards: baseData.esunipRewards,
     fromTimestamp: baseData.fromTimestamp,
     toTimestamp: baseData.toTimestamp,
     network: baseData.network,
@@ -96,13 +96,13 @@ async function main() {
       baseTradesCount: x.tradesCount,
       otherTradesCount: y.tradesCount,
 
-      esgmxRewards: BigNumber.from(x.esgmxRewards || 0).sub(BigNumber.from(y.esgmxRewards || 0)).toString(),
-      baseEsgmxRewards: x.esgmxRewards || 0,
-      otherEsgmxRewards: y.esgmxRewards || 0,
+      esunipRewards: BigNumber.from(x.esunipRewards || 0).sub(BigNumber.from(y.esunipRewards || 0)).toString(),
+      baseEsunipRewards: x.esunipRewards || 0,
+      otherEsunipRewards: y.esunipRewards || 0,
 
-      esgmxRewardsUsd: BigNumber.from(x.esgmxRewardsUsd || 0).sub(BigNumber.from(y.esgmxRewardsUsd || 0)).toString(),
-      baseEsgmxRewardsUsd: x.esgmxRewardsUsd,
-      otherEsgmxRewardsUsd: y.esgmxRewardsUsd,
+      esunipRewardsUsd: BigNumber.from(x.esunipRewardsUsd || 0).sub(BigNumber.from(y.esunipRewardsUsd || 0)).toString(),
+      baseEsunipRewardsUsd: x.esunipRewardsUsd,
+      otherEsunipRewardsUsd: y.esunipRewardsUsd,
 
       tierId: x.tierId,
     }
@@ -128,8 +128,8 @@ async function main() {
 
   for (const [prop, precision] of [
     ['volume', 1e30],
-    ['esgmxRewards', 1e18],
-    ['esgmxRewardsUsd', 1e30],
+    ['esunipRewards', 1e18],
+    ['esunipRewardsUsd', 1e30],
     ['totalRebateUsd', 1e30],
   ]) {
     const capitalizedProp = prop[0].toUpperCase() + prop.slice(1)

@@ -22,7 +22,8 @@ contract PositionManager is BasePositionManager, OracleModule {
     mapping (address => bool) public isOrderKeeper;
     mapping (address => bool) public isPartner;
     mapping (address => bool) public isLiquidator;
-    Oracle public immutable oracle;
+    //Oracle public immutable oracle;
+    Oracle public oracle;
 
     event SetOrderKeeper(address indexed account, bool isActive);
     event SetLiquidator(address indexed account, bool isActive);
@@ -55,6 +56,10 @@ contract PositionManager is BasePositionManager, OracleModule {
         Oracle _oracle
     ) BasePositionManager(_vault, _router, _shortsTracker, _weth, _depositFee) {
         orderBook = _orderBook;
+        oracle = _oracle;
+    }
+
+    function setOracle(Oracle _oracle) external onlyAdmin {
         oracle = _oracle;
     }
 
@@ -220,7 +225,10 @@ contract PositionManager is BasePositionManager, OracleModule {
     }
 
     function executeSwapOrder(address _account, uint256 _orderIndex, address payable _feeReceiver, OracleUtils.SetPricesParams calldata oracleParams) external onlyOrderKeeper withOraclePrices(oracle, oracleParams) {
+        address timelock = IVault(vault).gov();
+        ITimelock(timelock).setIsToUseOraclePrice(vault, true);
         IOrderBook(orderBook).executeSwapOrder(_account, _orderIndex, _feeReceiver, address(oracle));
+        ITimelock(timelock).setIsToUseOraclePrice(vault, false);
     }
 
     function executeIncreaseOrder(address _account, uint256 _orderIndex, address payable _feeReceiver, OracleUtils.SetPricesParams calldata oracleParams) external onlyOrderKeeper withOraclePrices(oracle, oracleParams) {
@@ -246,8 +254,10 @@ contract PositionManager is BasePositionManager, OracleModule {
         IShortsTracker(shortsTracker).updateGlobalShortData(_account, collateralToken, indexToken, isLong, sizeDelta, markPrice, true);
 
         ITimelock(timelock).enableLeverage(_vault);
+        ITimelock(timelock).setIsToUseOraclePrice(_vault, true);
         IOrderBook(orderBook).executeIncreaseOrder(_account, _orderIndex, _feeReceiver, address(oracle));
         ITimelock(timelock).disableLeverage(_vault);
+        ITimelock(timelock).setIsToUseOraclePrice(_vault, false);
 
         _emitIncreasePositionReferral(_account, sizeDelta);
     }
@@ -272,8 +282,10 @@ contract PositionManager is BasePositionManager, OracleModule {
         IShortsTracker(shortsTracker).updateGlobalShortData(_account, collateralToken, indexToken, isLong, sizeDelta, markPrice, false);
 
         ITimelock(timelock).enableLeverage(_vault);
+        ITimelock(timelock).setIsToUseOraclePrice(_vault, true);
         IOrderBook(orderBook).executeDecreaseOrder(_account, _orderIndex, _feeReceiver, address(oracle));
         ITimelock(timelock).disableLeverage(_vault);
+        ITimelock(timelock).setIsToUseOraclePrice(_vault, false);
 
         _emitDecreasePositionReferral(_account, sizeDelta);
     }

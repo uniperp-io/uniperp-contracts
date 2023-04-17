@@ -12,13 +12,13 @@ async function main() {
 
   const vault = await contractAt("Vault", "0xDE3590067c811b6F023b557ed45E4f1067859663")
   const usdg = await contractAt("USDG", "0x45096e7aA921f27590f8F19e457794EB09678141")
-  const glp = await contractAt("GLP", "0x4277f8F2c384827B5273592FF7CeBd9f2C1ac258")
+  const ulp = await contractAt("ULP", "0x4277f8F2c384827B5273592FF7CeBd9f2C1ac258")
 
-  const glpManager = await contractAt("GlpManager", "0x91425Ac4431d068980d497924DD540Ae274f3270")
+  const ulpManager = await contractAt("UlpManager", "0x91425Ac4431d068980d497924DD540Ae274f3270")
 
-  await sendTxn(glp.setMinter(glpManager.address, false), "glp.setMinter")
-  await sendTxn(usdg.removeVault(glpManager.address), "usdg.removeVault")
-  await sendTxn(vault.setManager(glpManager.address, false), "vault.setManager")
+  await sendTxn(ulp.setMinter(ulpManager.address, false), "ulp.setMinter")
+  await sendTxn(usdg.removeVault(ulpManager.address), "usdg.removeVault")
+  await sendTxn(vault.setManager(ulpManager.address, false), "vault.setManager")
 }
 
 main()

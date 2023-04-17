@@ -12,6 +12,7 @@ describe("Vault.swap", function () {
   const provider = waffle.provider
   const [wallet, user0, user1, user2, user3] = provider.getWallets()
   let vault
+  let vaultUtils
   let vaultPriceFeed
   let usdg
   let router
@@ -26,8 +27,8 @@ describe("Vault.swap", function () {
   let distributor0
   let yieldTracker0
 
-  let glpManager
-  let glp
+  let ulpManager
+  let ulp
 
   beforeEach(async () => {
     bnb = await deployContract("Token", [])
@@ -47,7 +48,9 @@ describe("Vault.swap", function () {
     router = await deployContract("Router", [vault.address, usdg.address, bnb.address])
     vaultPriceFeed = await deployContract("VaultPriceFeed", [])
 
-    await initVault(vault, router, usdg, vaultPriceFeed)
+    const xxRes = await initVault(vault, router, usdg, vaultPriceFeed)
+    vault = xxRes.vault
+    vaultUtils = xxRes.vaultUtils
 
     distributor0 = await deployContract("TimeDistributor", [])
     yieldTracker0 = await deployContract("YieldTracker", [usdg.address])
@@ -63,11 +66,20 @@ describe("Vault.swap", function () {
     await vaultPriceFeed.setTokenConfig(eth.address, ethPriceFeed.address, 8, false)
     await vaultPriceFeed.setTokenConfig(dai.address, daiPriceFeed.address, 8, false)
 
-    glp = await deployContract("GLP", [])
-    glpManager = await deployContract("GlpManager", [vault.address, usdg.address, glp.address, ethers.constants.AddressZero, 24 * 60 * 60])
+    await vault.setSyntheticStableToken(dai.address)
+    await vaultUtils.setIsTradable(bnb.address, true)
+    await vaultUtils.setIsTradable(btc.address, true)
+    await vaultUtils.setIsTradable(eth.address, true)
+    await vaultUtils.setIsTradable(dai.address, true)
+
+    ulp = await deployContract("ULP", [])
+    ulpManager = await deployContract("UlpManager", [vault.address, usdg.address, ulp.address, ethers.constants.AddressZero, 24 * 60 * 60])
   })
 
   it("swap", async () => {
+    await daiPriceFeed.setLatestAnswer(toChainlinkPrice(1))
+    await vault.setTokenConfig(...getDaiConfig(dai, daiPriceFeed))
+    
     await expect(vault.connect(user1).swap(bnb.address, btc.address, user2.address))
       .to.be.revertedWith("Vault: _tokenIn not whitelisted")
 
@@ -93,17 +105,17 @@ describe("Vault.swap", function () {
     await bnb.mint(user0.address, expandDecimals(200, 18))
     await btc.mint(user0.address, expandDecimals(1, 8))
 
-    expect(await glpManager.getAumInUsdg(false)).eq(0)
+    expect(await ulpManager.getAumInUsdg(false)).eq(0)
 
     await bnb.connect(user0).transfer(vault.address, expandDecimals(200, 18))
     await vault.connect(user0).buyUSDG(bnb.address, user0.address)
 
-    expect(await glpManager.getAumInUsdg(false)).eq(expandDecimals(59820, 18)) // 60,000 * 99.7%
+    expect(await ulpManager.getAumInUsdg(false)).eq(expandDecimals(59820, 18)) // 60,000 * 99.7%
 
     await btc.connect(user0).transfer(vault.address, expandDecimals(1, 8))
     await vault.connect(user0).buyUSDG(btc.address, user0.address)
 
-    expect(await glpManager.getAumInUsdg(false)).eq(expandDecimals(119640, 18)) // 59,820 + (60,000 * 99.7%)
+    expect(await ulpManager.getAumInUsdg(false)).eq(expandDecimals(119640, 18)) // 59,820 + (60,000 * 99.7%)
 
     expect(await usdg.balanceOf(user0.address)).eq(expandDecimals(120000, 18).sub(expandDecimals(360, 18))) // 120,000 * 0.3% => 360
 
@@ -119,13 +131,13 @@ describe("Vault.swap", function () {
     await bnbPriceFeed.setLatestAnswer(toChainlinkPrice(600))
     await bnbPriceFeed.setLatestAnswer(toChainlinkPrice(500))
 
-    expect(await glpManager.getAumInUsdg(false)).eq(expandDecimals(139580, 18)) // 59,820 / 300 * 400 + 59820
+    expect(await ulpManager.getAumInUsdg(false)).eq(expandDecimals(139580, 18)) // 59,820 / 300 * 400 + 59820
 
     await btcPriceFeed.setLatestAnswer(toChainlinkPrice(90000))
     await btcPriceFeed.setLatestAnswer(toChainlinkPrice(100000))
     await btcPriceFeed.setLatestAnswer(toChainlinkPrice(80000))
 
-    expect(await glpManager.getAumInUsdg(false)).eq(expandDecimals(159520, 18)) // 59,820 / 300 * 400 + 59820 / 60000 * 80000
+    expect(await ulpManager.getAumInUsdg(false)).eq(expandDecimals(159520, 18)) // 59,820 / 300 * 400 + 59820 / 60000 * 80000
 
     await bnb.mint(user1.address, expandDecimals(100, 18))
     await bnb.connect(user1).transfer(vault.address, expandDecimals(100, 18))
@@ -135,7 +147,7 @@ describe("Vault.swap", function () {
     const tx = await vault.connect(user1).swap(bnb.address, btc.address, user2.address)
     await reportGasUsed(provider, tx, "swap gas used")
 
-    expect(await glpManager.getAumInUsdg(false)).eq(expandDecimals(167520, 18)) // 159520 + (100 * 400) - 32000
+    expect(await ulpManager.getAumInUsdg(false)).eq(expandDecimals(167520, 18)) // 159520 + (100 * 400) - 32000
 
     expect(await btc.balanceOf(user1.address)).eq(0)
     expect(await btc.balanceOf(user2.address)).eq(expandDecimals(4, 7).sub("120000")) // 0.8 - 0.0012

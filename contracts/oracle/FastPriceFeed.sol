@@ -261,11 +261,34 @@ contract FastPriceFeed is ISecondaryPriceFeed, IFastPriceFeed, Governable {
         }
     }
 
-    function setPricesWithBits(uint256 _priceBits, uint256 _timestamp) external onlyUpdater {
-        _setPricesWithBits(_priceBits, _timestamp);
+    function setPricesWithBits(uint256 _priceGroup, uint256 _priceBits, uint256 _timestamp) external onlyUpdater {
+        _setPricesWithBits(_priceGroup, _priceBits, _timestamp);
+    }
+
+    function executePosition(
+        uint256 _endIndexForIncreasePositions,
+        uint256 _endIndexForDecreasePositions,
+        uint256 _maxIncreasePositions,
+        uint256 _maxDecreasePositions
+    ) external onlyUpdater {
+        IPositionRouter _positionRouter = IPositionRouter(positionRouter);
+        uint256 maxEndIndexForIncrease = _positionRouter.increasePositionRequestKeysStart().add(_maxIncreasePositions);
+        uint256 maxEndIndexForDecrease = _positionRouter.decreasePositionRequestKeysStart().add(_maxDecreasePositions);
+
+        if (_endIndexForIncreasePositions > maxEndIndexForIncrease) {
+            _endIndexForIncreasePositions = maxEndIndexForIncrease;
+        }
+
+        if (_endIndexForDecreasePositions > maxEndIndexForDecrease) {
+            _endIndexForDecreasePositions = maxEndIndexForDecrease;
+        }
+
+        _positionRouter.executeIncreasePositions(_endIndexForIncreasePositions, payable(msg.sender));
+        _positionRouter.executeDecreasePositions(_endIndexForDecreasePositions, payable(msg.sender));
     }
 
     function setPricesWithBitsAndExecute(
+        uint256 _priceGroup,
         uint256 _priceBits,
         uint256 _timestamp,
         uint256 _endIndexForIncreasePositions,
@@ -273,7 +296,7 @@ contract FastPriceFeed is ISecondaryPriceFeed, IFastPriceFeed, Governable {
         uint256 _maxIncreasePositions,
         uint256 _maxDecreasePositions
     ) external onlyUpdater {
-        _setPricesWithBits(_priceBits, _timestamp);
+        _setPricesWithBits(_priceGroup, _priceBits, _timestamp);
 
         IPositionRouter _positionRouter = IPositionRouter(positionRouter);
         uint256 maxEndIndexForIncrease = _positionRouter.increasePositionRequestKeysStart().add(_maxIncreasePositions);
@@ -383,7 +406,7 @@ contract FastPriceFeed is ISecondaryPriceFeed, IFastPriceFeed, Governable {
         return (uint256(data.refPrice), uint256(data.refTime), uint256(data.cumulativeRefDelta), uint256(data.cumulativeFastDelta));
     }
 
-    function _setPricesWithBits(uint256 _priceBits, uint256 _timestamp) private {
+    function _setPricesWithBits(uint256 _priceGroup, uint256 _priceBits, uint256 _timestamp) private {
         bool shouldUpdate = _setLastUpdatedValues(_timestamp);
 
         if (shouldUpdate) {
@@ -391,14 +414,14 @@ contract FastPriceFeed is ISecondaryPriceFeed, IFastPriceFeed, Governable {
             address _vaultPriceFeed = vaultPriceFeed;
 
             for (uint256 j = 0; j < 8; j++) {
-                uint256 index = j;
+                uint256 index = j + _priceGroup * 8;
                 if (index >= tokens.length) { return; }
 
                 uint256 startBit = 32 * j;
                 uint256 price = (_priceBits >> startBit) & BITMASK_32;
 
-                address token = tokens[j];
-                uint256 tokenPrecision = tokenPrecisions[j];
+                address token = tokens[index];
+                uint256 tokenPrecision = tokenPrecisions[index];
                 uint256 adjustedPrice = price.mul(PRICE_PRECISION).div(tokenPrecision);
 
                 _setPrice(token, adjustedPrice, _vaultPriceFeed, _fastPriceEvents);

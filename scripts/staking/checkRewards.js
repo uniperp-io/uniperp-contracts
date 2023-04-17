@@ -19,31 +19,31 @@ async function printDistributorBalance(token, distributor, label) {
 }
 
 async function main() {
-  const gmx = await contractAt("GMX", "0xfc5A1A6EB076a2C7aD06eD22C90d7E710E35ad0a")
-  const esGmx = await contractAt("EsGMX", "0xf42Ae1D54fd613C9bb14810b0588FaAa09a426cA")
-  const bnGmx = await contractAt("MintableBaseToken", "0x35247165119B69A40edD5304969560D0ef486921")
+  const unip = await contractAt("UNIP", "0xfc5A1A6EB076a2C7aD06eD22C90d7E710E35ad0a")
+  const esUnip = await contractAt("EsUNIP", "0xf42Ae1D54fd613C9bb14810b0588FaAa09a426cA")
+  const bnUnip = await contractAt("MintableBaseToken", "0x35247165119B69A40edD5304969560D0ef486921")
   const weth = await contractAt("Token", "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1")
 
-  const stakedGmxTracker = await contractAt("RewardTracker", "0x908C4D94D34924765f1eDc22A1DD098397c59dD4")
-  const stakedGmxDistributor = await getDistributor(stakedGmxTracker)
+  const stakedUnipTracker = await contractAt("RewardTracker", "0x908C4D94D34924765f1eDc22A1DD098397c59dD4")
+  const stakedUnipDistributor = await getDistributor(stakedUnipTracker)
 
-  const bonusGmxTracker = await contractAt("RewardTracker", "0x4d268a7d4C16ceB5a606c173Bd974984343fea13")
-  const bonusGmxDistributor = await getDistributor(bonusGmxTracker)
+  const bonusUnipTracker = await contractAt("RewardTracker", "0x4d268a7d4C16ceB5a606c173Bd974984343fea13")
+  const bonusUnipDistributor = await getDistributor(bonusUnipTracker)
 
-  const feeGmxTracker = await contractAt("RewardTracker", "0xd2D1162512F927a7e282Ef43a362659E4F2a728F")
-  const feeGmxDistributor = await getDistributor(feeGmxTracker)
+  const feeUnipTracker = await contractAt("RewardTracker", "0xd2D1162512F927a7e282Ef43a362659E4F2a728F")
+  const feeUnipDistributor = await getDistributor(feeUnipTracker)
 
-  const stakedGlpTracker = await contractAt("RewardTracker", "0x1aDDD80E6039594eE970E5872D247bf0414C8903")
-  const stakedGlpDistributor = await getDistributor(stakedGlpTracker)
+  const stakedUlpTracker = await contractAt("RewardTracker", "0x1aDDD80E6039594eE970E5872D247bf0414C8903")
+  const stakedUlpDistributor = await getDistributor(stakedUlpTracker)
 
-  const feeGlpTracker = await contractAt("RewardTracker", "0x4e971a87900b931fF39d1Aad67697F49835400b6")
-  const feeGlpDistributor = await getDistributor(feeGlpTracker)
+  const feeUlpTracker = await contractAt("RewardTracker", "0x4e971a87900b931fF39d1Aad67697F49835400b6")
+  const feeUlpDistributor = await getDistributor(feeUlpTracker)
 
-  await printDistributorBalance(esGmx, stakedGmxDistributor, "esGmx in stakedGmxDistributor:")
-  await printDistributorBalance(bnGmx, bonusGmxDistributor, "bnGmx in bonusGmxDistributor:")
-  await printDistributorBalance(weth, feeGmxDistributor, "weth in feeGmxDistributor:")
-  await printDistributorBalance(esGmx, stakedGlpDistributor, "esGmx in stakedGlpDistributor:")
-  await printDistributorBalance(weth, feeGlpDistributor, "esGmx in feeGlpDistributor:")
+  await printDistributorBalance(esUnip, stakedUnipDistributor, "esUnip in stakedUnipDistributor:")
+  await printDistributorBalance(bnUnip, bonusUnipDistributor, "bnUnip in bonusUnipDistributor:")
+  await printDistributorBalance(weth, feeUnipDistributor, "weth in feeUnipDistributor:")
+  await printDistributorBalance(esUnip, stakedUlpDistributor, "esUnip in stakedUlpDistributor:")
+  await printDistributorBalance(weth, feeUlpDistributor, "esUnip in feeUlpDistributor:")
 }
 
 main()

@@ -54,7 +54,9 @@ describe("Vault.getPrice", function () {
     router = await deployContract("Router", [vault.address, usdg.address, bnb.address])
     vaultPriceFeed = await deployContract("VaultPriceFeed", [])
 
-    await initVault(vault, router, usdg, vaultPriceFeed)
+    const xxRes = await initVault(vault, router, usdg, vaultPriceFeed)
+    vault = xxRes.vault
+    let vaultUtils = xxRes.vaultUtils
 
     distributor0 = await deployContract("TimeDistributor", [])
     yieldTracker0 = await deployContract("YieldTracker", [usdg.address])
@@ -69,6 +71,12 @@ describe("Vault.getPrice", function () {
     await vaultPriceFeed.setTokenConfig(btc.address, btcPriceFeed.address, 8, false)
     await vaultPriceFeed.setTokenConfig(dai.address, daiPriceFeed.address, 8, false)
     await vaultPriceFeed.setTokenConfig(usdc.address, usdcPriceFeed.address, 8, true)
+
+    await vault.setSyntheticStableToken(dai.address)
+    await vaultUtils.setIsTradable(bnb.address, true)
+    await vaultUtils.setIsTradable(btc.address, true)
+    await vaultUtils.setIsTradable(eth.address, true)
+    await vaultUtils.setIsTradable(dai.address, true)
   })
 
   it("getPrice", async () => {
@@ -87,7 +95,8 @@ describe("Vault.getPrice", function () {
       75, // _minProfitBps,
       0, // _maxUsdgAmount
       false, // _isStable
-      true // _isShortable
+      true, // _isShortable
+      false //isSynthetic
     )
 
     expect(await vaultPriceFeed.getPrice(usdc.address, true, true, true)).eq(expandDecimals(1, 30))

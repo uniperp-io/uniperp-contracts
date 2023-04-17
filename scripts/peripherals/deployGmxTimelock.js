@@ -14,7 +14,7 @@ async function runForArbitrum() {
   const mintReceiver = { address: AddressZero }
   const maxTokenSupply = expandDecimals("13250000", 18)
 
-  const timelock = await deployContract("GmxTimelock", [
+  const timelock = await deployContract("UnipTimelock", [
     admin,
     buffer,
     longBuffer,
@@ -22,7 +22,7 @@ async function runForArbitrum() {
     tokenManager.address,
     mintReceiver.address,
     maxTokenSupply
-  ], "GmxTimelock", { gasLimit: 100000000 })
+  ], "UnipTimelock", { gasLimit: 100000000 })
 }
 
 async function runForAvax() {
@@ -34,7 +34,7 @@ async function runForAvax() {
   const mintReceiver = { address: AddressZero }
   const maxTokenSupply = expandDecimals("13250000", 18)
 
-  const timelock = await deployContract("GmxTimelock", [
+  const timelock = await deployContract("UnipTimelock", [
     admin,
     buffer,
     longBuffer,

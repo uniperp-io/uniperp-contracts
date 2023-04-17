@@ -42,7 +42,7 @@ contract BaseToken is IERC20, IBaseToken {
         _;
     }
 
-    constructor(string memory _name, string memory _symbol, uint256 _initialSupply) public {
+    constructor(string memory _name, string memory _symbol, uint256 _initialSupply) {
         name = _name;
         symbol = _symbol;
         gov = msg.sender;

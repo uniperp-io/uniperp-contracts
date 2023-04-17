@@ -30,24 +30,24 @@ const { AddressZero } = ethers.constants
 
 async function getArbValues() {
   const batchSender = await contractAt("BatchSender", "0x1070f775e8eb466154BBa8FA0076C4Adc7FE17e8")
-  const gmx = await contractAt("Token", "0xfc5A1A6EB076a2C7aD06eD22C90d7E710E35ad0a")
+  const unip = await contractAt("Token", "0xfc5A1A6EB076a2C7aD06eD22C90d7E710E35ad0a")
   const data = arbitrumData
   const gasLimit = 30000000
-  const totalGmx = 766
+  const totalUnip = 766
   const totalUsd = 44821
 
-  return { batchSender, gmx, data, gasLimit, totalGmx, totalUsd }
+  return { batchSender, unip, data, gasLimit, totalUnip, totalUsd }
 }
 
 async function getAvaxValues() {
   const batchSender = await contractAt("BatchSender", "0xF0f929162751DD723fBa5b86A9B3C88Dc1D4957b")
-  const gmx = await contractAt("Token", "0x62edc0692BD897D2295872a9FFCac5425011c661")
+  const unip = await contractAt("Token", "0x62edc0692BD897D2295872a9FFCac5425011c661")
   const data = avaxData
   const gasLimit = 5000000
-  const totalGmx = 233
+  const totalUnip = 233
   const totalUsd = 13653
 
-  return { batchSender, gmx, data, gasLimit, totalGmx, totalUsd }
+  return { batchSender, unip, data, gasLimit, totalUnip, totalUsd }
 }
 
 async function getValues() {
@@ -62,7 +62,7 @@ async function getValues() {
 
 async function main() {
   const wallet = { address: "0x5F799f365Fa8A2B60ac0429C48B153cA5a6f0Cf8" }
-  const { batchSender, gmx, data, totalGmx, totalUsd, gasLimit } = await getValues()
+  const { batchSender, unip, data, totalUnip, totalUsd, gasLimit } = await getValues()
 
   const affiliatesData = data.referrers
 
@@ -76,11 +76,11 @@ async function main() {
   let totalAmount = bigNumberify(0)
 
   for (let i = 0; i < affiliatesData.length; i++) {
-    const { account, rebateUsd, esgmxRewardsUsd } = affiliatesData[i]
+    const { account, rebateUsd, esunipRewardsUsd } = affiliatesData[i]
 
     if (account === AddressZero) { continue }
 
-    const amount = bigNumberify(rebateUsd).mul(expandDecimals(totalGmx, 18)).div(expandDecimals(totalUsd, 30))
+    const amount = bigNumberify(rebateUsd).mul(expandDecimals(totalUnip, 18)).div(expandDecimals(totalUsd, 30))
     affiliateAccounts.push(account)
     affiliateAmounts.push(amount)
 
@@ -101,7 +101,7 @@ async function main() {
       }
     }
 
-    await sendTxn(gmx.approve(batchSender.address, totalAmount, { gasLimit: 1000000 }), "gmx.approve")
+    await sendTxn(unip.approve(batchSender.address, totalAmount, { gasLimit: 1000000 }), "unip.approve")
 
     await processBatch([affiliateAccounts, affiliateAmounts], batchSize, async (currentBatch) => {
       printBatch(currentBatch)
@@ -109,7 +109,7 @@ async function main() {
       const accounts = currentBatch.map((item) => item[0])
       const amounts = currentBatch.map((item) => item[1])
 
-      await sendTxn(batchSender.sendAndEmit(gmx.address, accounts, amounts, affiliateRewardsTypeId, { gasLimit }), "batchSender.sendAndEmit(gmx, affiliate rewards)")
+      await sendTxn(batchSender.sendAndEmit(unip.address, accounts, amounts, affiliateRewardsTypeId, { gasLimit }), "batchSender.sendAndEmit(unip, affiliate rewards)")
     })
   }
 }

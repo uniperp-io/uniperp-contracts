@@ -6,6 +6,7 @@ import "../libraries/token/IERC20.sol";
 import "../libraries/math/SafeMath.sol";
 
 import "../core/interfaces/IVault.sol";
+import "../core/interfaces/IVaultUtils.sol";
 import "../core/interfaces/IVaultPriceFeed.sol";
 import "../tokens/interfaces/IYieldTracker.sol";
 import "../tokens/interfaces/IYieldToken.sol";
@@ -175,10 +176,11 @@ contract Reader is Governable {
         return amounts;
     }
 
-    function getFundingRates(address _vault, address _weth, address[] memory _tokens) public view returns (uint256[] memory) {
+    function getFundingRates(address _vault, address _vaultUtils, address _weth, address[] memory _tokens) public view returns (uint256[] memory) {
         uint256 propsLength = 2;
         uint256[] memory fundingRates = new uint256[](_tokens.length * propsLength);
         IVault vault = IVault(_vault);
+        IVaultUtils vaultUtils = IVaultUtils(_vaultUtils);
 
         for (uint256 i = 0; i < _tokens.length; i++) {
             address token = _tokens[i];
@@ -186,7 +188,7 @@ contract Reader is Governable {
                 token = _weth;
             }
 
-            uint256 fundingRateFactor = vault.stableTokens(token) ? vault.stableFundingRateFactor() : vault.fundingRateFactor();
+            uint256 fundingRateFactor = vault.stableTokens(token) ? vaultUtils.stableFundingRateFactor() : vaultUtils.fundingRateFactor();
             uint256 reservedAmount = vault.reservedAmounts(token);
             uint256 poolAmount = vault.poolAmounts(token);
 
@@ -194,9 +196,9 @@ contract Reader is Governable {
                 fundingRates[i * propsLength] = fundingRateFactor.mul(reservedAmount).div(poolAmount);
             }
 
-            if (vault.cumulativeFundingRates(token) > 0) {
-                uint256 nextRate = vault.getNextFundingRate(token);
-                uint256 baseRate = vault.cumulativeFundingRates(token);
+            if (vaultUtils.cumulativeFundingRates(token) > 0) {
+                uint256 nextRate = vaultUtils.getNextFundingRate(token);
+                uint256 baseRate = vaultUtils.cumulativeFundingRates(token);
                 fundingRates[i * propsLength + 1] = baseRate.add(nextRate);
             }
         }

@@ -61,8 +61,8 @@ async function readFeeConfig(vault) {
   console.log("vault.hasDynamicFees", (await vault.hasDynamicFees()).toString())
 }
 
-async function readGlpManager(glpManager) {
-  console.log("glpManager.cooldownDuration", (await glpManager.cooldownDuration()).toString())
+async function readUlpManager(ulpManager) {
+  console.log("ulpManager.cooldownDuration", (await ulpManager.cooldownDuration()).toString())
 }
 
 async function getPool(tokenAddress0, tokenAddress1, fees) {
@@ -76,25 +76,25 @@ async function main() {
   // const vault = await contractAt("Vault", "0xDE3590067c811b6F023b557ed45E4f1067859663")
   // const weth = { address: "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1" }
   // const usdc = { address: "0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8" }
-  // const gmx = { address: "0xfc5A1A6EB076a2C7aD06eD22C90d7E710E35ad0a" }
+  // const unip = { address: "0xfc5A1A6EB076a2C7aD06eD22C90d7E710E35ad0a" }
   // const tokens = ["0x82aF49447D8a07e3bd95BD0d56f35241523fBab1", "0x2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f"]
   // const usdgAmount = expandDecimals(1, 18)
-  // const glpManager = await contractAt("GlpManager", "0x91425Ac4431d068980d497924DD540Ae274f3270")
+  // const ulpManager = await contractAt("UlpManager", "0x91425Ac4431d068980d497924DD540Ae274f3270")
 
-  // await readGlpManager(glpManager)
+  // await readUlpManager(ulpManager)
 
   // await getPool(weth.address, usdc.address, 500)
-  // await getPool(weth.address, gmx.address, 10000)
+  // await getPool(weth.address, unip.address, 10000)
 
   const vault = await contractAt("Vault", "0x489ee077994B6658eAfA855C308275EAd8097C4A")
-  const glpManager = await contractAt("GlpManager", "0x321F653eED006AD1C29D174e17d96351BDe22649")
+  const ulpManager = await contractAt("UlpManager", "0x321F653eED006AD1C29D174e17d96351BDe22649")
   let startTime = Date.now()
   await vault.getMinPrice("0x82aF49447D8a07e3bd95BD0d56f35241523fBab1")
   console.log("vault.getMinPrice", Date.now() - startTime)
 
   startTime = Date.now()
-  await glpManager.getAums()
-  console.log("glpManager.getAums", Date.now() - startTime)
+  await ulpManager.getAums()
+  console.log("ulpManager.getAums", Date.now() - startTime)
 }
 
 main()
