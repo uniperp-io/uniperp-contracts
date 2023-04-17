@@ -1,26 +1,26 @@
 const { deployContract, contractAt, sendTxn } = require("../shared/helpers")
 const { expandDecimals } = require("../../test/shared/utilities")
-const stakeGmxList = require("../../data/gmxMigration/stakeGmxList6.json")
+const stakeUnipList = require("../../data/unipMigration/stakeUnipList6.json")
 
 async function main() {
   const wallet = { address: "0x5F799f365Fa8A2B60ac0429C48B153cA5a6f0Cf8" }
-  const gmx = await contractAt("GMX", "0xfc5A1A6EB076a2C7aD06eD22C90d7E710E35ad0a");
+  const unip = await contractAt("UNIP", "0xfc5A1A6EB076a2C7aD06eD22C90d7E710E35ad0a");
   const rewardRouter = await contractAt("RewardRouter", "0xc73d553473dC65CE56db96c58e6a091c20980fbA")
-  const stakedGmxTracker = await contractAt("RewardTracker", "0x908C4D94D34924765f1eDc22A1DD098397c59dD4")
+  const stakedUnipTracker = await contractAt("RewardTracker", "0x908C4D94D34924765f1eDc22A1DD098397c59dD4")
   const shouldStake = false
 
-  console.log("processing list", stakeGmxList.length)
+  console.log("processing list", stakeUnipList.length)
 
-  // await sendTxn(gmx.setMinter(wallet.address, true), "gmx.setMinter")
-  // await sendTxn(gmx.mint(wallet.address, expandDecimals(5500000, 18)), "gmx.mint")
-  // await sendTxn(gmx.approve(stakedGmxTracker.address, expandDecimals(5500000, 18)), "gmx.approve(stakedGmxTracker)")
-  // await sendTxn(rewardRouter.batchStakeGmxForAccount(["0x5F799f365Fa8A2B60ac0429C48B153cA5a6f0Cf8"], [1], { gasLimit: 30000000 }), "rewardRouter.batchStakeGmxForAccount")
+  // await sendTxn(unip.setMinter(wallet.address, true), "unip.setMinter")
+  // await sendTxn(unip.mint(wallet.address, expandDecimals(5500000, 18)), "unip.mint")
+  // await sendTxn(unip.approve(stakedUnipTracker.address, expandDecimals(5500000, 18)), "unip.approve(stakedUnipTracker)")
+  // await sendTxn(rewardRouter.batchStakeUnipForAccount(["0x5F799f365Fa8A2B60ac0429C48B153cA5a6f0Cf8"], [1], { gasLimit: 30000000 }), "rewardRouter.batchStakeUnipForAccount")
 
   if (!shouldStake) {
-    for (let i = 0; i < stakeGmxList.length; i++) {
-      const item = stakeGmxList[i]
+    for (let i = 0; i < stakeUnipList.length; i++) {
+      const item = stakeUnipList[i]
       const account = item.address
-      const stakedAmount = await stakedGmxTracker.stakedAmounts(account)
+      const stakedAmount = await stakedUnipTracker.stakedAmounts(account)
       console.log(`${account} : ${stakedAmount.toString()}`)
     }
     return
@@ -30,8 +30,8 @@ async function main() {
   let accounts = []
   let amounts = []
 
-  for (let i = 0; i < stakeGmxList.length; i++) {
-    const item = stakeGmxList[i]
+  for (let i = 0; i < stakeUnipList.length; i++) {
+    const item = stakeUnipList[i]
     accounts.push(item.address)
     amounts.push(item.balance)
 
@@ -39,11 +39,11 @@ async function main() {
       console.log("accounts", accounts)
       console.log("amounts", amounts)
       console.log("sending batch", i, accounts.length, amounts.length)
-      await sendTxn(rewardRouter.batchStakeGmxForAccount(accounts, amounts), "rewardRouter.batchStakeGmxForAccount")
+      await sendTxn(rewardRouter.batchStakeUnipForAccount(accounts, amounts), "rewardRouter.batchStakeUnipForAccount")
 
       const account = accounts[0]
       const amount = amounts[0]
-      const stakedAmount = await stakedGmxTracker.stakedAmounts(account)
+      const stakedAmount = await stakedUnipTracker.stakedAmounts(account)
       console.log(`${account}: ${amount.toString()}, ${stakedAmount.toString()}`)
 
       accounts = []
@@ -52,8 +52,8 @@ async function main() {
   }
 
   if (accounts.length > 0) {
-    console.log("sending final batch", stakeGmxList.length, accounts.length, amounts.length)
-    await sendTxn(rewardRouter.batchStakeGmxForAccount(accounts, amounts), "rewardRouter.batchStakeGmxForAccount")
+    console.log("sending final batch", stakeUnipList.length, accounts.length, amounts.length)
+    await sendTxn(rewardRouter.batchStakeUnipForAccount(accounts, amounts), "rewardRouter.batchStakeUnipForAccount")
   }
 }
 

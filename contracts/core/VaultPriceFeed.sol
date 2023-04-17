@@ -55,13 +55,14 @@ contract VaultPriceFeed is IVaultPriceFeed {
     mapping (address => uint256) public override adjustmentBasisPoints;
     mapping (address => bool) public override isAdjustmentAdditive;
     mapping (address => uint256) public lastAdjustmentTimings;
+    mapping (address => bool) public override fastPriceSwitch;
 
     modifier onlyGov() {
         require(msg.sender == gov, "VaultPriceFeed: forbidden");
         _;
     }
 
-    constructor() public {
+    constructor() {
         gov = msg.sender;
     }
 
@@ -98,6 +99,10 @@ contract VaultPriceFeed is IVaultPriceFeed {
 
     function setSecondaryPriceFeed(address _secondaryPriceFeed) external onlyGov {
         secondaryPriceFeed = _secondaryPriceFeed;
+    }
+
+    function setFastPriceSwitch(address _token, bool _isOpen) external onlyGov {
+        fastPriceSwitch[_token] = _isOpen;
     }
 
     function setTokens(address _btc, address _eth, address _bnb) external onlyGov {
@@ -338,6 +343,9 @@ contract VaultPriceFeed is IVaultPriceFeed {
 
     function getSecondaryPrice(address _token, uint256 _referencePrice, bool _maximise) public view returns (uint256) {
         if (secondaryPriceFeed == address(0)) { return _referencePrice; }
+        if (!fastPriceSwitch[_token]) {
+            return _referencePrice;
+        }
         return ISecondaryPriceFeed(secondaryPriceFeed).getPrice(_token, _referencePrice, _maximise);
     }
 

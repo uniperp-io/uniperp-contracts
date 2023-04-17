@@ -16,7 +16,7 @@ contract Bridge is ReentrancyGuard, Governable {
     address public token;
     address public wToken;
 
-    constructor(address _token, address _wToken) public {
+    constructor(address _token, address _wToken) {
         token = _token;
         wToken = _wToken;
     }

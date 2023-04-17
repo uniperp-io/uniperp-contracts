@@ -18,6 +18,7 @@ import "../libraries/utils/Bits.sol";
 import "../libraries/utils/Array.sol";
 import "../libraries/utils/Precision.sol";
 import "../libraries/utils/Cast.sol";
+//import "hardhat/console.sol";
 
 // @title Oracle
 // @dev Contract to validate and store signed values
@@ -74,6 +75,7 @@ contract Oracle is ReentrancyGuard, Governable {
     // signer indexes are recorded in a signerIndexFlags uint256 value to check for uniqueness
     uint256 public constant MAX_SIGNER_INDEX = 256;
 
+    mapping (address => bool) public isPositionManager;
     address public priceFeed;
     OracleStore public oracleStore;
 
@@ -90,6 +92,9 @@ contract Oracle is ReentrancyGuard, Governable {
     // customPrices can be used to store custom price values
     // these prices will be cleared in clearAllPrices
     mapping(address => Price.Props) public customPrices;
+
+    mapping (address => uint256) public minOracleBlockNumbers;
+    mapping (address => uint256) public maxOracleBlockNumbers;
 
     error EmptyTokens();
     error InvalidBlockNumber(uint256 blockNumber);
@@ -110,7 +115,8 @@ contract Oracle is ReentrancyGuard, Governable {
     error NonEmptyTokensWithPrices(uint256 tokensWithPricesLength);
     error EmptyPriceFeed(address token);
     error PriceAlreadySet(address token, uint256 minPrice, uint256 maxPrice);
-
+    
+    event SetPositionManager(address indexed account, bool isActive);
     event EventLog1(
         address msgSender,
         string indexed eventNameHash,
@@ -119,8 +125,12 @@ contract Oracle is ReentrancyGuard, Governable {
         EventUtils.EventLogData eventData
     );
 
-    constructor(
-    ) public {
+    modifier onlyPositionManager() {
+        require(isPositionManager[msg.sender], "Oracle: forbidden");
+        _;
+    }
+
+    constructor() {
         // sign prices with only the chainid and oracle name so that there is
         // less config required in the oracle nodes
         SALT = keccak256(abi.encode(block.chainid, "xget-oracle-v1"));
@@ -128,6 +138,15 @@ contract Oracle is ReentrancyGuard, Governable {
 
     function setPriceFeed(address _priceFeed) external onlyGov {
         priceFeed = _priceFeed;
+    }
+
+    function setOracleStore(OracleStore _oracleStore) external onlyGov {
+        oracleStore = _oracleStore;
+    }
+
+    function setPositionManager(address _account, bool _isActive) external onlyGov {
+        isPositionManager[_account] = _isActive;
+        emit SetPositionManager(_account, _isActive);
     }
 
     // @dev validate and store signed prices
@@ -220,50 +239,61 @@ contract Oracle is ReentrancyGuard, Governable {
     // - USDC: 30 - 6 - 6 => 18
     // - DG: 30 - 18 - 11 => 1
     // @param params OracleUtils.SetPricesParams
-    function setPrices(
-        OracleUtils.SetPricesParams memory params
-    ) external onlyGov {
+    function setPrices(OracleUtils.SetPricesParams memory params) external onlyPositionManager {
         if (tokensWithPrices.length() != 0) {
-            revert NonEmptyTokensWithPrices(tokensWithPrices.length());
+            //revert NonEmptyTokensWithPrices(tokensWithPrices.length());
+            revert("aa01");
         }
 
-        if (params.tokens.length == 0) { revert EmptyTokens(); }
+        if (params.tokens.length == 0) { 
+            //revert EmptyTokens(); 
+            revert("aaem");
+        }
 
         // first 16 bits of signer info contains the number of signers
         address[] memory signers = new address[](params.signerInfo & Bits.BITMASK_16);
+        //console.log("signers length: ", signers.length);
 
         if (signers.length < MIN_ORACLE_SIGNERS) {
-            revert MinOracleSigners(signers.length, MIN_ORACLE_SIGNERS);
+            //revert MinOracleSigners(signers.length, MIN_ORACLE_SIGNERS);
+            revert("aa02");
         }
 
         if (signers.length > MAX_SIGNERS) {
-            revert MaxOracleSigners(signers.length, MAX_SIGNERS);
+            //revert MaxOracleSigners(signers.length, MAX_SIGNERS);
+            revert("aa03");
         }
 
+        //console.log("gohere1");
         uint256 signerIndexFlags;
 
         for (uint256 i = 0; i < signers.length; i++) {
             uint256 signerIndex = params.signerInfo >> (16 + 16 * i) & Bits.BITMASK_16;
 
             if (signerIndex >= MAX_SIGNER_INDEX) {
-                revert MaxSignerIndex(signerIndex, MAX_SIGNER_INDEX);
+                //revert MaxSignerIndex(signerIndex, MAX_SIGNER_INDEX);
+                revert("aa04");
             }
 
             uint256 signerIndexBit = 1 << signerIndex;
 
             if (signerIndexFlags & signerIndexBit != 0) {
-                revert DuplicateSigner(signerIndex);
+                //revert DuplicateSigner(signerIndex);
+                revert("aa05");
             }
 
             signerIndexFlags = signerIndexFlags | signerIndexBit;
 
             signers[i] = oracleStore.getSigner(signerIndex);
+            //console.log("i: ", i, signers[i]);
         }
 
+        //console.log("gohere2");
         _setPrices(
             signers,
             params
         );
+        //console.log("gohere3");
 
         _setPricesFromPriceFeeds(params.priceFeedTokens);
     }
@@ -290,7 +320,7 @@ contract Oracle is ReentrancyGuard, Governable {
     }
 
     // @dev clear all prices
-    function clearAllPrices() external onlyGov {
+    function clearAllPrices() external onlyPositionManager {
         uint256 length = tokensWithPrices.length();
         for (uint256 i = 0; i < length; i++) {
             address token = tokensWithPrices.at(0);
@@ -365,11 +395,13 @@ contract Oracle is ReentrancyGuard, Governable {
 
     function getMaxPrice(address _token) public view returns (uint256) {
         Price.Props memory latestPrice = getLatestPrice(_token);
+        require(latestPrice.max != 0, "oracle.getMaxPrice return 0");
         return latestPrice.max;
     }
 
     function getMinPrice(address _token) public view returns (uint256) {
         Price.Props memory latestPrice = getLatestPrice(_token);
+        require(latestPrice.min != 0, "oracle.getMinPrice return 0");
         return latestPrice.min;
     }
 
@@ -422,28 +454,35 @@ contract Oracle is ReentrancyGuard, Governable {
             cache.info.maxOracleBlockNumber = OracleUtils.getUncompactedOracleBlockNumber(params.compactedMaxOracleBlockNumbers, i);
 
             if (cache.info.minOracleBlockNumber > cache.info.maxOracleBlockNumber) {
-                revert InvalidMinMaxBlockNumber(cache.info.minOracleBlockNumber, cache.info.maxOracleBlockNumber);
+                //revert InvalidMinMaxBlockNumber(cache.info.minOracleBlockNumber, cache.info.maxOracleBlockNumber);
+                revert("aa11");
             }
 
             cache.info.oracleTimestamp = OracleUtils.getUncompactedOracleTimestamp(params.compactedOracleTimestamps, i);
 
             if (cache.info.minOracleBlockNumber > Chain.currentBlockNumber()) {
-                revert InvalidBlockNumber(cache.info.minOracleBlockNumber);
+                //revert InvalidBlockNumber(cache.info.minOracleBlockNumber);
+                revert("aa12");
             }
 
             if (cache.info.oracleTimestamp + cache.maxPriceAge < Chain.currentTimestamp()) {
-                revert MaxPriceAgeExceeded(cache.info.oracleTimestamp);
+                //revert MaxPriceAgeExceeded(cache.info.oracleTimestamp);
+                revert("aa13");
             }
 
             // block numbers must be in ascending order
             if (cache.info.minOracleBlockNumber < cache.prevMinOracleBlockNumber) {
-                revert BlockNumbersNotSorted(cache.info.minOracleBlockNumber, cache.prevMinOracleBlockNumber);
+                //revert BlockNumbersNotSorted(cache.info.minOracleBlockNumber, cache.prevMinOracleBlockNumber);
+                revert("aa14");
             }
             cache.prevMinOracleBlockNumber = cache.info.minOracleBlockNumber;
 
             cache.info.blockHash = bytes32(0);
             if (Chain.currentBlockNumber() - cache.info.minOracleBlockNumber <= cache.minBlockConfirmations) {
                 cache.info.blockHash = Chain.getBlockHash(cache.info.minOracleBlockNumber);
+            }
+            if (cache.info.blockHash == bytes32(0)) {
+                revert("aa15");
             }
 
             cache.info.token = params.tokens[i];
@@ -462,12 +501,14 @@ contract Oracle is ReentrancyGuard, Governable {
 
                 // validate that minPrices are sorted in ascending order
                 if (cache.minPrices[j - 1] > cache.minPrices[j]) {
-                    revert MinPricesNotSorted(cache.info.token, cache.minPrices[j], cache.minPrices[j - 1]);
+                    //revert MinPricesNotSorted(cache.info.token, cache.minPrices[j], cache.minPrices[j - 1]);
+                    revert("aa16");
                 }
 
                 // validate that maxPrices are sorted in ascending order
                 if (cache.maxPrices[j - 1] > cache.maxPrices[j]) {
-                    revert MaxPricesNotSorted(cache.info.token, cache.maxPrices[j], cache.maxPrices[j - 1]);
+                    //revert MaxPricesNotSorted(cache.info.token, cache.maxPrices[j], cache.maxPrices[j - 1]);
+                    revert("aa17");
                 }
             }
 
@@ -477,22 +518,26 @@ contract Oracle is ReentrancyGuard, Governable {
                 cache.maxPriceIndex = OracleUtils.getUncompactedPriceIndex(params.compactedMaxPricesIndexes, cache.signatureIndex);
 
                 if (cache.signatureIndex >= params.signatures.length) {
-                    Array.revertArrayOutOfBounds(params.signatures, cache.signatureIndex, "signatures");
+                    //Array.revertArrayOutOfBounds(params.signatures, cache.signatureIndex, "signatures");
+                    revert("aa18");
                 }
 
                 if (cache.minPriceIndex >= cache.minPrices.length) {
-                    Array.revertArrayOutOfBounds(cache.minPrices, cache.minPriceIndex, "minPrices");
+                    //Array.revertArrayOutOfBounds(cache.minPrices, cache.minPriceIndex, "minPrices");
+                    revert("aa19");
                 }
 
                 if (cache.maxPriceIndex >= cache.maxPrices.length) {
-                    Array.revertArrayOutOfBounds(cache.maxPrices, cache.maxPriceIndex, "maxPrices");
+                    //Array.revertArrayOutOfBounds(cache.maxPrices, cache.maxPriceIndex, "maxPrices");
+                    revert("aa20");
                 }
 
                 cache.info.minPrice = cache.minPrices[cache.minPriceIndex];
                 cache.info.maxPrice = cache.maxPrices[cache.maxPriceIndex];
 
                 if (cache.info.minPrice > cache.info.maxPrice) {
-                    revert InvalidSignerMinMaxPrice(cache.info.minPrice, cache.info.maxPrice);
+                    //revert InvalidSignerMinMaxPrice(cache.info.minPrice, cache.info.maxPrice);
+                    revert("aa21");
                 }
 
                 OracleUtils.validateSigner(
@@ -507,11 +552,13 @@ contract Oracle is ReentrancyGuard, Governable {
             uint256 medianMaxPrice = Array.getMedian(cache.maxPrices) * cache.info.precision;
 
             if (medianMinPrice == 0 || medianMaxPrice == 0) {
-                revert InvalidOraclePrice(cache.info.token);
+                //revert InvalidOraclePrice(cache.info.token);
+                revert("aa23");
             }
 
             if (medianMinPrice > medianMaxPrice) {
-                revert InvalidMedianMinMaxPrice(medianMinPrice, medianMaxPrice);
+                //revert InvalidMedianMinMaxPrice(medianMinPrice, medianMaxPrice);
+                revert("aa24");
             }
 
             if (primaryPrices[cache.info.token].isEmpty()) {
@@ -529,7 +576,9 @@ contract Oracle is ReentrancyGuard, Governable {
                     medianMaxPrice
                 );
             }
-
+            
+            minOracleBlockNumbers[cache.info.token] = cache.info.minOracleBlockNumber;
+            maxOracleBlockNumbers[cache.info.token] = cache.info.maxOracleBlockNumber;
             tokensWithPrices.add(cache.info.token);
         }
     }
@@ -541,9 +590,11 @@ contract Oracle is ReentrancyGuard, Governable {
             address token = priceFeedTokens[i];
 
             if (!primaryPrices[token].isEmpty()) {
-                revert PriceAlreadySet(token, primaryPrices[token].min, primaryPrices[token].max);
+                //revert PriceAlreadySet(token, primaryPrices[token].min, primaryPrices[token].max);
+                revert("aa25");
             }
 
+            //TODO how about the decimal? must be 10**30
             uint256 maxPrice = IVaultPriceFeed(priceFeed).getPrice(token, true, false, false);
             uint256 minPrice = IVaultPriceFeed(priceFeed).getPrice(token, false, false, false);
 
@@ -555,6 +606,8 @@ contract Oracle is ReentrancyGuard, Governable {
                 );
 
             primaryPrices[token] = priceProps;
+            minOracleBlockNumbers[token] = Chain.currentBlockNumber();
+            maxOracleBlockNumbers[token] = Chain.currentBlockNumber();
             tokensWithPrices.add(token);
 
             emitOraclePriceUpdated(token, priceProps.min, priceProps.max, true, true);

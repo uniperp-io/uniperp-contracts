@@ -28,7 +28,7 @@ contract ShortsTracker is Governable, IShortsTracker {
         _;
     }
 
-    constructor(address _vault) public {
+    constructor(address _vault) {
         vault = IVault(_vault);
     }
 
@@ -75,6 +75,19 @@ contract ShortsTracker is Governable, IShortsTracker {
         emit GlobalShortDataUpdated(_indexToken, globalShortSize, globalShortAveragePrice);
     }
 
+    function getGlobalShortDelta(address _token, uint256 _price) public view returns (bool, uint256) {
+        uint256 size = vault.globalShortSizes(_token);
+        uint256 averagePrice = globalShortAveragePrices[_token];
+        if (size == 0) { return (false, 0); }
+
+        uint256 nextPrice = _price;
+        uint256 priceDelta = averagePrice > nextPrice ? averagePrice.sub(nextPrice) : nextPrice.sub(averagePrice);
+        uint256 delta = size.mul(priceDelta).div(averagePrice);
+        bool hasProfit = averagePrice > nextPrice;
+
+        return (hasProfit, delta);
+    }
+
     function setInitData(address[] calldata _tokens, uint256[] calldata _averagePrices) override external onlyGov {
         require(!isGlobalShortDataReady, "ShortsTracker: already migrated");
 
@@ -92,7 +105,7 @@ contract ShortsTracker is Governable, IShortsTracker {
         uint256 _sizeDelta,
         bool _isIncrease
     ) override public view returns (uint256, uint256) {
-        int256 realisedPnl = getRealisedPnl(_account,_collateralToken, _indexToken, _sizeDelta, _isIncrease);
+        int256 realisedPnl = getRealisedPnl(_account,_collateralToken, _indexToken, _sizeDelta, _isIncrease, _nextPrice);
         uint256 averagePrice = globalShortAveragePrices[_indexToken];
         uint256 priceDelta = averagePrice > _nextPrice ? averagePrice.sub(_nextPrice) : _nextPrice.sub(averagePrice);
 
@@ -130,7 +143,8 @@ contract ShortsTracker is Governable, IShortsTracker {
         address _collateralToken,
         address _indexToken,
         uint256 _sizeDelta,
-        bool _isIncrease
+        bool _isIncrease,
+        uint256 _nextPrice
     ) public view returns (int256) {
         if (_isIncrease) {
             return 0;
@@ -139,7 +153,7 @@ contract ShortsTracker is Governable, IShortsTracker {
         IVault _vault = vault;
         (uint256 size, /*uint256 collateral*/, uint256 averagePrice, , , , , uint256 lastIncreasedTime) = _vault.getPosition(_account, _collateralToken, _indexToken, false);
 
-        (bool hasProfit, uint256 delta) = _vault.getDelta(_indexToken, size, averagePrice, false, lastIncreasedTime);
+        (bool hasProfit, uint256 delta) = _vault.getDeltaV2(_indexToken, size, averagePrice, false, lastIncreasedTime, _nextPrice);
         // get the proportional change in pnl
         uint256 adjustedDelta = _sizeDelta.mul(delta).div(size);
         require(adjustedDelta < MAX_INT256, "ShortsTracker: overflow");

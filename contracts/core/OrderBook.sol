@@ -8,6 +8,7 @@ import "../tokens/interfaces/IWETH.sol";
 import "../libraries/token/SafeERC20.sol";
 import "../libraries/utils/Address.sol";
 import "../libraries/utils/ReentrancyGuard.sol";
+import "../libraries/chain/Chain.sol";
 
 import "./interfaces/IRouter.sol";
 import "./interfaces/IVault.sol";
@@ -34,6 +35,7 @@ contract OrderBook is ReentrancyGuard, IOrderBook {
         uint256 triggerPrice;
         bool triggerAboveThreshold;
         uint256 executionFee;
+        uint256 updatedAtBlock;
     }
     struct DecreaseOrder {
         address account;
@@ -45,6 +47,7 @@ contract OrderBook is ReentrancyGuard, IOrderBook {
         uint256 triggerPrice;
         bool triggerAboveThreshold;
         uint256 executionFee;
+        uint256 updatedAtBlock;
     }
     struct SwapOrder {
         address account;
@@ -55,6 +58,7 @@ contract OrderBook is ReentrancyGuard, IOrderBook {
         bool triggerAboveThreshold;
         bool shouldUnwrap;
         uint256 executionFee;
+        uint256 updatedAtBlock;
     }
 
     mapping (address => bool) public isPositionManager;
@@ -242,7 +246,7 @@ contract OrderBook is ReentrancyGuard, IOrderBook {
         _;
     }
 
-    constructor() public {
+    constructor() {
         gov = msg.sender;
     }
 
@@ -359,6 +363,8 @@ contract OrderBook is ReentrancyGuard, IOrderBook {
         uint256 _executionFee
     ) private {
         uint256 _orderIndex = swapOrdersIndex[_account];
+
+        uint256 blocknum = Chain.currentBlockNumber();
         SwapOrder memory order = SwapOrder(
             _account,
             _path,
@@ -367,7 +373,8 @@ contract OrderBook is ReentrancyGuard, IOrderBook {
             _triggerRatio,
             _triggerAboveThreshold,
             _shouldUnwrap,
-            _executionFee
+            _executionFee,
+            blocknum
         );
         swapOrdersIndex[_account] = _orderIndex.add(1);
         swapOrders[_account][_orderIndex] = order;
@@ -461,6 +468,7 @@ contract OrderBook is ReentrancyGuard, IOrderBook {
         order.minOut = _minOut;
         order.triggerRatio = _triggerRatio;
         order.triggerAboveThreshold = _triggerAboveThreshold;
+        order.updatedAtBlock = Chain.currentBlockNumber();
 
         emit UpdateSwapOrder(
             msg.sender,
@@ -478,6 +486,16 @@ contract OrderBook is ReentrancyGuard, IOrderBook {
     function executeSwapOrder(address _account, uint256 _orderIndex, address payable _feeReceiver, address _oracle) override external nonReentrant onlyPositionManager {
         SwapOrder memory order = swapOrders[_account][_orderIndex];
         require(order.account != address(0), "OrderBook: non-existent order");
+        {
+            for (uint i = 0; i < order.path.length; i++) {
+                if (order.path[i] == usdg) {
+                    continue;
+                }
+                if (order.updatedAtBlock > IOracle(_oracle).minOracleBlockNumbers(order.path[i])) {
+                    revert("order.updatedAtBlock > oracle.minOracleBlockNumbers");
+                }
+            }
+        }
 
         if (order.triggerAboveThreshold) {
             // gas optimisation
@@ -494,10 +512,10 @@ contract OrderBook is ReentrancyGuard, IOrderBook {
 
         uint256 _amountOut;
         if (order.path[order.path.length - 1] == weth && order.shouldUnwrap) {
-            _amountOut = _swapV2(order.path, order.minOut, address(this), _oracle);
+            _amountOut = _swap(order.path, order.minOut, address(this));
             _transferOutETH(_amountOut, payable(order.account));
         } else {
-            _amountOut = _swapV2(order.path, order.minOut, order.account, _oracle);
+            _amountOut = _swap(order.path, order.minOut, order.account);
         }
 
         // pay executor
@@ -649,6 +667,8 @@ contract OrderBook is ReentrancyGuard, IOrderBook {
         uint256 _executionFee
     ) private {
         uint256 _orderIndex = increaseOrdersIndex[msg.sender];
+
+        uint256 blocknum = Chain.currentBlockNumber();
         IncreaseOrder memory order = IncreaseOrder(
             _account,
             _purchaseToken,
@@ -659,7 +679,8 @@ contract OrderBook is ReentrancyGuard, IOrderBook {
             _isLong,
             _triggerPrice,
             _triggerAboveThreshold,
-            _executionFee
+            _executionFee,
+            blocknum
         );
         increaseOrdersIndex[_account] = _orderIndex.add(1);
         increaseOrders[_account][_orderIndex] = order;
@@ -686,6 +707,7 @@ contract OrderBook is ReentrancyGuard, IOrderBook {
         order.triggerPrice = _triggerPrice;
         order.triggerAboveThreshold = _triggerAboveThreshold;
         order.sizeDelta = _sizeDelta;
+        order.updatedAtBlock = Chain.currentBlockNumber();
 
         emit UpdateIncreaseOrder(
             msg.sender,
@@ -727,10 +749,21 @@ contract OrderBook is ReentrancyGuard, IOrderBook {
         );
     }
 
-
     function executeIncreaseOrder(address _address, uint256 _orderIndex, address payable _feeReceiver, address _oracle) override external nonReentrant onlyPositionManager {
         IncreaseOrder memory order = increaseOrders[_address][_orderIndex];
         require(order.account != address(0), "OrderBook: non-existent order");
+
+        {
+            if (order.updatedAtBlock > IOracle(_oracle).minOracleBlockNumbers(order.purchaseToken)) {
+                revert("order.updatedAtBlock > oracle.minOracleBlockNumbers1");
+            }
+            if (order.updatedAtBlock > IOracle(_oracle).minOracleBlockNumbers(order.collateralToken)) {
+                revert("order.updatedAtBlock > oracle.minOracleBlockNumbers2");
+            }
+            if (order.updatedAtBlock > IOracle(_oracle).minOracleBlockNumbers(order.indexToken)) {
+                revert("order.updatedAtBlock > oracle.minOracleBlockNumbers3");
+            }
+        }
 
         // increase long should use max price
         // increase short should use min price
@@ -752,16 +785,18 @@ contract OrderBook is ReentrancyGuard, IOrderBook {
             path[0] = order.purchaseToken;
             path[1] = order.collateralToken;
 
-            //TODO use _swap or _swapV2 ? may be _swap, as user only care about triggerPrice of the indexToken
             uint256 amountOut = _swap(path, 0, address(this));
             IERC20(order.collateralToken).safeTransfer(vault, amountOut);
         }
 
-        IVault(vault).increasePositionV2(order.account, order.collateralToken, order.indexToken, order.sizeDelta, order.isLong, _oracle);
+        IVault(vault).increasePosition(order.account, order.collateralToken, order.indexToken, order.sizeDelta, order.isLong);
 
         // pay executor
         _transferOutETH(order.executionFee, _feeReceiver);
+        emitExecuteIncreaseOrder(order, _orderIndex, currentPrice);
+    }
 
+    function emitExecuteIncreaseOrder(IncreaseOrder memory order, uint256 _orderIndex, uint256 currentPrice) private {
         emit ExecuteIncreaseOrder(
             order.account,
             _orderIndex,
@@ -814,6 +849,8 @@ contract OrderBook is ReentrancyGuard, IOrderBook {
         bool _triggerAboveThreshold
     ) private {
         uint256 _orderIndex = decreaseOrdersIndex[_account];
+
+        uint256 blocknum = Chain.currentBlockNumber();
         DecreaseOrder memory order = DecreaseOrder(
             _account,
             _collateralToken,
@@ -823,7 +860,8 @@ contract OrderBook is ReentrancyGuard, IOrderBook {
             _isLong,
             _triggerPrice,
             _triggerAboveThreshold,
-            msg.value
+            msg.value,
+            blocknum
         );
         decreaseOrdersIndex[_account] = _orderIndex.add(1);
         decreaseOrders[_account][_orderIndex] = order;
@@ -846,6 +884,15 @@ contract OrderBook is ReentrancyGuard, IOrderBook {
         DecreaseOrder memory order = decreaseOrders[_address][_orderIndex];
         require(order.account != address(0), "OrderBook: non-existent order");
 
+        {
+            if (order.updatedAtBlock > IOracle(_oracle).minOracleBlockNumbers(order.collateralToken)) {
+                revert("order.updatedAtBlock > oracle.minOracleBlockNumbers2");
+            }
+            if (order.updatedAtBlock > IOracle(_oracle).minOracleBlockNumbers(order.indexToken)) {
+                revert("order.updatedAtBlock > oracle.minOracleBlockNumbers");
+            }
+        }
+
         // decrease long should use min price
         // decrease short should use max price
         (uint256 currentPrice, ) = validatePositionOrderPrice(
@@ -859,15 +906,14 @@ contract OrderBook is ReentrancyGuard, IOrderBook {
 
         delete decreaseOrders[_address][_orderIndex];
 
-        uint256 amountOut = IVault(vault).decreasePositionV2(
+        uint256 amountOut = IVault(vault).decreasePosition(
             order.account,
             order.collateralToken,
             order.indexToken,
             order.collateralDelta,
             order.sizeDelta,
             order.isLong,
-            address(this),
-            _oracle
+            address(this)
         );
 
         // transfer released collateral to user
@@ -882,7 +928,7 @@ contract OrderBook is ReentrancyGuard, IOrderBook {
         emitExecuteDecreaseOrder(order, _orderIndex, currentPrice);
     }
 
-    function emitExecuteDecreaseOrder(DecreaseOrder memory order, uint256 _orderIndex, uint256 currentPrice) private nonReentrant {
+    function emitExecuteDecreaseOrder(DecreaseOrder memory order, uint256 _orderIndex, uint256 currentPrice) private {
         emit ExecuteDecreaseOrder(
             order.account,
             _orderIndex,
@@ -933,6 +979,7 @@ contract OrderBook is ReentrancyGuard, IOrderBook {
         order.triggerAboveThreshold = _triggerAboveThreshold;
         order.sizeDelta = _sizeDelta;
         order.collateralDelta = _collateralDelta;
+        order.updatedAtBlock = Chain.currentBlockNumber();
 
         emit UpdateDecreaseOrder(
             msg.sender,
@@ -985,26 +1032,4 @@ contract OrderBook is ReentrancyGuard, IOrderBook {
         require(amountOut >= _minOut, "OrderBook: insufficient amountOut");
         return amountOut;
     }
-
-    function _swapV2(address[] memory _path, uint256 _minOut, address _receiver, address _oracle) private returns (uint256) {
-        if (_path.length == 2) {
-            return _vaultSwapV2(_path[0], _path[1], _minOut, _receiver, _oracle);
-        }
-        if (_path.length == 3) {
-            uint256 midOut = _vaultSwapV2(_path[0], _path[1], 0, address(this), _oracle);
-            IERC20(_path[1]).safeTransfer(vault, midOut);
-            return _vaultSwapV2(_path[1], _path[2], _minOut, _receiver, _oracle);
-        }
-
-        revert("OrderBook: invalid _path.length");
-    }
-
-    function _vaultSwapV2(address _tokenIn, address _tokenOut, uint256 _minOut, address _receiver, address _oracle) private returns (uint256) {
-        require(_tokenIn != usdg, "_tokenIn can not be usdt");
-        require(_tokenOut != usdg, "_tokenOut can not be usdt");
-
-        uint256 amountOut = IVault(vault).swapV2(_tokenIn, _tokenOut, _receiver, _oracle);
-        require(amountOut >= _minOut, "OrderBook: insufficient amountOut");
-        return amountOut;
-    }    
 }

@@ -1,10 +1,10 @@
 const { deployContract, contractAt, writeTmpAddresses } = require("../shared/helpers")
 
 async function main() {
-  await deployContract("MintableBaseToken", ["VestingOption", "ARB:GMX", 0])
-  await deployContract("MintableBaseToken", ["VestingOption", "ARB:GLP", 0])
-  await deployContract("MintableBaseToken", ["VestingOption", "AVAX:GMX", 0])
-  await deployContract("MintableBaseToken", ["VestingOption", "AVAX:GLP", 0])
+  await deployContract("MintableBaseToken", ["VestingOption", "ARB:UNIP", 0])
+  await deployContract("MintableBaseToken", ["VestingOption", "ARB:ULP", 0])
+  await deployContract("MintableBaseToken", ["VestingOption", "AVAX:UNIP", 0])
+  await deployContract("MintableBaseToken", ["VestingOption", "AVAX:ULP", 0])
 }
 
 main()

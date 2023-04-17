@@ -4,7 +4,7 @@ const { deployContract } = require("../../shared/fixtures")
 const { expandDecimals, getBlockTime, increaseTime, mineBlock, reportGasUsed } = require("../../shared/utilities")
 const { toChainlinkPrice } = require("../../shared/chainlink")
 const { toUsd, toNormalizedPrice } = require("../../shared/units")
-const { initVault, getBnbConfig, getBtcConfig } = require("./helpers")
+const { initVault, getBnbConfig, getBtcConfig, getDaiConfig } = require("./helpers")
 
 use(solidity)
 
@@ -12,6 +12,7 @@ describe("Vault.withdrawFees", function () {
   const provider = waffle.provider
   const [wallet, user0, user1, user2, user3] = provider.getWallets()
   let vault
+  let vaultUtils
   let vaultPriceFeed
   let usdg
   let router
@@ -39,7 +40,9 @@ describe("Vault.withdrawFees", function () {
     router = await deployContract("Router", [vault.address, usdg.address, bnb.address])
     vaultPriceFeed = await deployContract("VaultPriceFeed", [])
 
-    await initVault(vault, router, usdg, vaultPriceFeed)
+    const xxRes = await initVault(vault, router, usdg, vaultPriceFeed)
+    vault = xxRes.vault
+    vaultUtils = xxRes.vaultUtils
 
     distributor0 = await deployContract("TimeDistributor", [])
     yieldTracker0 = await deployContract("YieldTracker", [usdg.address])
@@ -53,9 +56,17 @@ describe("Vault.withdrawFees", function () {
     await vaultPriceFeed.setTokenConfig(bnb.address, bnbPriceFeed.address, 8, false)
     await vaultPriceFeed.setTokenConfig(btc.address, btcPriceFeed.address, 8, false)
     await vaultPriceFeed.setTokenConfig(dai.address, daiPriceFeed.address, 8, false)
+
+  	await vault.setSyntheticStableToken(dai.address)
+    await vaultUtils.setIsTradable(bnb.address, true)
+    await vaultUtils.setIsTradable(btc.address, true)
+    await vaultUtils.setIsTradable(dai.address, true)
   })
 
   it("withdrawFees", async () => {
+    await daiPriceFeed.setLatestAnswer(toChainlinkPrice(1))
+    await vault.setTokenConfig(...getDaiConfig(dai, daiPriceFeed))
+
     await bnbPriceFeed.setLatestAnswer(toChainlinkPrice(300))
     await vault.setTokenConfig(...getBnbConfig(bnb, bnbPriceFeed))
 
@@ -181,7 +192,7 @@ describe("Vault.withdrawFees", function () {
       5 * 24 * 60 * 60, // _buffer
       user0.address, // _tokenManager
       user1.address, // _mintReceiver
-      user2.address, // _glpManager
+      user2.address, // _ulpManager
       user3.address, // _rewardRouter
       expandDecimals(1000, 18), // _maxTokenSupply
       10, // marginFeeBasisPoints
@@ -262,7 +273,7 @@ describe("Vault.withdrawFees", function () {
       5 * 24 * 60 * 60, // _buffer
       user0.address, // _tokenManager
       user1.address, // _mintReceiver
-      user2.address, // _glpManager
+      user2.address, // _ulpManager
       user3.address, // _rewardRouter
       expandDecimals(1000, 18), // _maxTokenSupply
       10, // marginFeeBasisPoints

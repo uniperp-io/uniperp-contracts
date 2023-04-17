@@ -39,7 +39,9 @@ describe("Vault.closeLongPosition", function () {
     router = await deployContract("Router", [vault.address, usdg.address, bnb.address])
     vaultPriceFeed = await deployContract("VaultPriceFeed", [])
 
-    await initVault(vault, router, usdg, vaultPriceFeed)
+    const xxRes = await initVault(vault, router, usdg, vaultPriceFeed)
+    vault = xxRes.vault
+    let vaultUtils = xxRes.vaultUtils
 
     distributor0 = await deployContract("TimeDistributor", [])
     yieldTracker0 = await deployContract("YieldTracker", [usdg.address])
@@ -53,6 +55,11 @@ describe("Vault.closeLongPosition", function () {
     await vaultPriceFeed.setTokenConfig(bnb.address, bnbPriceFeed.address, 8, false)
     await vaultPriceFeed.setTokenConfig(btc.address, btcPriceFeed.address, 8, false)
     await vaultPriceFeed.setTokenConfig(dai.address, daiPriceFeed.address, 8, false)
+
+  	await vault.setSyntheticStableToken(dai.address)
+    await vaultUtils.setIsTradable(bnb.address, true)
+    await vaultUtils.setIsTradable(btc.address, true)
+    await vaultUtils.setIsTradable(dai.address, true)
   })
 
   it("close long position", async () => {

@@ -34,7 +34,7 @@ contract TimeDistributor is IDistributor {
         _;
     }
 
-    constructor() public {
+    constructor() {
         gov = msg.sender;
         admin = msg.sender;
     }

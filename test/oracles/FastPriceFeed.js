@@ -47,7 +47,7 @@ describe("FastPriceFeed", function () {
       5 * 24 * 60 * 60, // _buffer
       tokenManager.address, // _tokenManager
       mintReceiver.address, // _mintReceiver
-      user0.address, // _glpManager
+      user0.address, // _ulpManager
       user1.address, // _rewardRouter
       expandDecimals(1000, 18), // _maxTokenSupply
       10, // marginFeeBasisPoints 0.1%
@@ -648,14 +648,14 @@ describe("FastPriceFeed", function () {
     let priceBits = getPriceBits([price1, price2])
     let blockTime = await getBlockTime(provider)
 
-    await expect(fastPriceFeed.connect(user0).setPricesWithBits(priceBits, blockTime))
+    await expect(fastPriceFeed.connect(user0).setPricesWithBits(0, priceBits, blockTime))
       .to.be.revertedWith("FastPriceFeed: forbidden")
 
     await fastPriceFeed.connect(wallet).setUpdater(user0.address, true)
 
     expect(await fastPriceFeed.lastUpdatedAt()).eq(0)
 
-    const tx0 = await fastPriceFeed.connect(user0).setPricesWithBits(priceBits, blockTime)
+    const tx0 = await fastPriceFeed.connect(user0).setPricesWithBits(0, priceBits, blockTime)
     await reportGasUsed(provider, tx0, "tx0 setPricesWithBits gas used")
 
     expect(await fastPriceFeed.prices(token1.address)).eq(getExpandedPrice(price1, 1000))
@@ -667,7 +667,7 @@ describe("FastPriceFeed", function () {
 
     blockTime = blockTime + 500
 
-    await fastPriceFeed.connect(user0).setPricesWithBits(priceBits, blockTime)
+    await fastPriceFeed.connect(user0).setPricesWithBits(0, priceBits, blockTime)
 
     expect(await fastPriceFeed.prices(token1.address)).eq(getExpandedPrice(price1, 1000))
     expect(await fastPriceFeed.prices(token2.address)).eq(getExpandedPrice(price2, 10000))
@@ -683,7 +683,7 @@ describe("FastPriceFeed", function () {
       price1, price2, price3, price4,
       price5, price6, price7])
 
-    const tx1 = await fastPriceFeed.connect(user0).setPricesWithBits(priceBits, blockTime)
+    const tx1 = await fastPriceFeed.connect(user0).setPricesWithBits(0, priceBits, blockTime)
     await reportGasUsed(provider, tx1, "tx1 setPricesWithBits gas used")
 
     const p1 = await fastPriceFeed.prices(token1.address)
@@ -705,7 +705,7 @@ describe("FastPriceFeed", function () {
       price1, price2, price3, price4,
       price5, price6, price7, price8])
 
-    await fastPriceFeed.connect(user0).setPricesWithBits(priceBits, blockTime)
+    await fastPriceFeed.connect(user0).setPricesWithBits(0, priceBits, blockTime)
 
     expect(await fastPriceFeed.prices(token1.address)).eq(getExpandedPrice(price1, 1000))
     expect(await fastPriceFeed.prices(token2.address)).eq(getExpandedPrice(price2, 100))
@@ -721,7 +721,7 @@ describe("FastPriceFeed", function () {
       price5, price6, price7, price9])
 
     await mineBlock(provider)
-    await fastPriceFeed.connect(user0).setPricesWithBits(priceBits, blockTime)
+    await fastPriceFeed.connect(user0).setPricesWithBits(0, priceBits, blockTime)
 
     expect(await fastPriceFeed.prices(token1.address)).eq(getExpandedPrice(price1, 1000))
     expect(await fastPriceFeed.prices(token2.address)).eq(getExpandedPrice(price2, 100))
@@ -737,7 +737,7 @@ describe("FastPriceFeed", function () {
       price5, price6, price7, price8])
 
     await mineBlock(provider)
-    await fastPriceFeed.connect(user0).setPricesWithBits(priceBits, blockTime - 1)
+    await fastPriceFeed.connect(user0).setPricesWithBits(0, priceBits, blockTime - 1)
 
     expect(await fastPriceFeed.prices(token1.address)).eq(getExpandedPrice(price1, 1000))
     expect(await fastPriceFeed.prices(token2.address)).eq(getExpandedPrice(price2, 100))
@@ -749,7 +749,7 @@ describe("FastPriceFeed", function () {
     expect(await fastPriceFeed.prices(token8.address)).eq(getExpandedPrice(price9, 100))
 
     await mineBlock(provider)
-    await fastPriceFeed.connect(user0).setPricesWithBits(priceBits, blockTime + 1)
+    await fastPriceFeed.connect(user0).setPricesWithBits(0, priceBits, blockTime + 1)
 
     expect(await fastPriceFeed.prices(token1.address)).eq(getExpandedPrice(price7, 1000))
     expect(await fastPriceFeed.prices(token2.address)).eq(getExpandedPrice(price1, 100))

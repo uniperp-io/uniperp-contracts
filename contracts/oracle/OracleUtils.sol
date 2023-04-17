@@ -146,7 +146,10 @@ library OracleUtils {
             "getUncompactedPrice"
         );
 
-        if (price == 0) { revert EmptyCompactedPrice(index); }
+        if (price == 0) {
+            //revert EmptyCompactedPrice(index);
+            revert("os08");
+        }
 
         return price;
     }
@@ -212,7 +215,10 @@ library OracleUtils {
             "getUncompactedOracleBlockNumber"
         );
 
-        if (blockNumber == 0) { revert EmptyCompactedBlockNumber(index); }
+        if (blockNumber == 0) {
+            //revert EmptyCompactedBlockNumber(index);
+            revert("os09");
+        }
 
         return blockNumber;
     }
@@ -230,7 +236,10 @@ library OracleUtils {
             "getUncompactedOracleTimestamp"
         );
 
-        if (blockNumber == 0) { revert EmptyCompactedTimestamp(index); }
+        if (blockNumber == 0) {
+            //revert EmptyCompactedTimestamp(index); 
+            revert("os10");
+        }
 
         return blockNumber;
     }
@@ -269,16 +278,19 @@ library OracleUtils {
 
         address recoveredSigner = ECDSA.recover(digest, signature);
         if (recoveredSigner != expectedSigner) {
-            revert InvalidSignature(recoveredSigner, expectedSigner);
+            //revert InvalidSignature(recoveredSigner, expectedSigner);
+            revert("os11");
         }
     }
 
     function revertOracleBlockNumbersAreNotEqual(uint256[] memory oracleBlockNumbers, uint256 expectedBlockNumber) internal pure {
-        revert OracleBlockNumbersAreNotEqual(oracleBlockNumbers, expectedBlockNumber);
+        //revert OracleBlockNumbersAreNotEqual(oracleBlockNumbers, expectedBlockNumber);
+        revert("os12");
     }
 
     function revertOracleBlockNumbersAreSmallerThanRequired(uint256[] memory oracleBlockNumbers, uint256 expectedBlockNumber) internal pure {
-        revert OracleBlockNumbersAreSmallerThanRequired(oracleBlockNumbers, expectedBlockNumber);
+        //revert OracleBlockNumbersAreSmallerThanRequired(oracleBlockNumbers, expectedBlockNumber);
+        revert("os13");
     }
 
     function revertOracleBlockNumberNotWithinRange(
@@ -286,7 +298,8 @@ library OracleUtils {
         uint256[] memory maxOracleBlockNumbers,
         uint256 blockNumber
     ) internal pure {
-        revert OracleBlockNumberNotWithinRange(minOracleBlockNumbers, maxOracleBlockNumbers, blockNumber);
+        //revert OracleBlockNumberNotWithinRange(minOracleBlockNumbers, maxOracleBlockNumbers, blockNumber);
+        revert("os14");
     }
 
     function isEmptyPriceError(bytes4 errorSelector) internal pure returns (bool) {

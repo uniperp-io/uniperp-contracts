@@ -1,11 +1,13 @@
 const { expect, use } = require("chai")
 const { solidity } = require("ethereum-waffle")
 const { deployContract } = require("../../shared/fixtures")
-const { expandDecimals, reportGasUsed, gasUsed } = require("../../shared/utilities")
+const { expandDecimals, reportGasUsed, gasUsed, mineBlock } = require("../../shared/utilities")
 const { toChainlinkPrice } = require("../../shared/chainlink")
 const { toUsd } = require("../../shared/units")
 const { initVault, getBnbConfig, getBtcConfig, getDaiConfig } = require("../Vault/helpers")
 const { getDefault, validateOrderFields, getTxFees, positionWrapper, defaultCreateDecreaseOrderFactory } = require('./helpers');
+const { deployFixture } = require("../../../utils/fixture")
+const { prepareOracleParam, getOracleBlock, getSigners } = require("../../shared/prepareOracleParams")
 
 use(solidity);
 
@@ -18,6 +20,7 @@ describe("OrderBook, decrease position orders", () => {
     const [wallet, user0, user1, user2, user3] = provider.getWallets()
 
     let vault;
+    let vaultUtils;
     let orderBook;
     let defaults;
     let tokenDecimals;
@@ -54,7 +57,9 @@ describe("OrderBook, decrease position orders", () => {
         router = await deployContract("Router", [vault.address, usdg.address, bnb.address])
         vaultPriceFeed = await deployContract("VaultPriceFeed", [])
 
-        const initVaultResult = await initVault(vault, router, usdg, vaultPriceFeed)
+        const xxRes = await initVault(vault, router, usdg, vaultPriceFeed)
+        vault = xxRes.vault
+        vaultUtils = xxRes.vaultUtils
 
         distributor0 = await deployContract("TimeDistributor", [])
         yieldTracker0 = await deployContract("YieldTracker", [usdg.address])
@@ -73,6 +78,12 @@ describe("OrderBook, decrease position orders", () => {
         await vaultPriceFeed.setTokenConfig(dai.address, daiPriceFeed.address, 8, false)
         await vaultPriceFeed.setPriceSampleSpace(1);
 
+        await vault.setSyntheticStableToken(dai.address)
+        await vaultUtils.setIsTradable(bnb.address, true)
+        await vaultUtils.setIsTradable(btc.address, true)
+        await vaultUtils.setIsTradable(eth.address, true)
+        await vaultUtils.setIsTradable(dai.address, true)
+
         tokenDecimals = {
             [bnb.address]: 18,
             [dai.address]: 18,
@@ -88,6 +99,24 @@ describe("OrderBook, decrease position orders", () => {
         await bnbPriceFeed.setLatestAnswer(toChainlinkPrice(BNB_PRICE))
         await vault.setTokenConfig(...getBnbConfig(bnb, bnbPriceFeed))
 
+        oracle = await deployContract("Oracle", [])
+        oracleStore = await deployContract("OracleStore", [])
+        await oracle.setOracleStore(oracleStore.address)
+        await oracle.setPositionManager(wallet.address, true)
+        await oracle.setPositionManager(user0.address, true)
+        await oracle.setPositionManager(user1.address, true)
+        await vault.setOracle(oracle.address)
+        
+        const fixture = await deployFixture();
+        //const { oracleSalt, signerIndexes } = fixture.props;
+        const oracleSigners = await getSigners(fixture)
+        for (let i = 0; i < oracleSigners.length; i++) {
+          const tmpSigner = oracleSigners[i]
+          //console.log(tmpSigner.address)
+          await oracleStore.addSigner(tmpSigner.address)
+        }
+        await oracle.setPriceFeed(vaultPriceFeed.address)
+
         orderBook = await deployContract("OrderBook", [])
         const minExecutionFee = 500000;
         await orderBook.initialize(
@@ -98,9 +127,13 @@ describe("OrderBook, decrease position orders", () => {
             minExecutionFee,
             expandDecimals(5, 30) // minPurchseTokenAmountUsd
         );
+        await orderBook.setPositionManager(wallet.address, true)
+        await orderBook.setPositionManager(user0.address, true)
+        await orderBook.setPositionManager(user1.address, true)
 
         await router.addPlugin(orderBook.address);
         await router.connect(user0).approvePlugin(orderBook.address);
+        await vault.setOrderBook(orderBook.address)
 
         await btc.mint(user0.address, expandDecimals(1000, 8))
         await btc.connect(user0).approve(router.address, expandDecimals(100, 8))
@@ -261,6 +294,10 @@ describe("OrderBook, decrease position orders", () => {
         let triggerPrice, isLong, triggerAboveThreshold, newBtcPrice;
         let orderIndex = 0;
 
+        let feedTokens = [dai.address, btc.address];
+        const precisions = [26, 26];
+        const priceFeedTokens = [];
+
         // decrease long should use min price
         // decrease short should use max price
         for ([triggerPrice, isLong, triggerAboveThreshold, newBtcPrice, setPriceTwice] of [
@@ -278,23 +315,73 @@ describe("OrderBook, decrease position orders", () => {
                 triggerAboveThreshold,
                 isLong
             });
+            
+            //console.log("config: ", triggerPrice, isLong, triggerAboveThreshold)
+
+            let minPrices = [Math.trunc(1 *10**4), Math.trunc(BTC_PRICE *10**4)];
+            let maxPrices = [Math.trunc(1 *10**4), Math.trunc(BTC_PRICE *10**4)];
+            let oracleParam = await prepareOracleParam(feedTokens, precisions, minPrices, maxPrices, priceFeedTokens, await getOracleBlock(provider))
+            expect(oracleParam).to.not.be.null;
+            await oracle.setPrices(oracleParam)
 
             const order = await orderBook.decreaseOrders(defaults.user.address, orderIndex);
-            await expect(orderBook.executeDecreaseOrder(order.account, orderIndex, user1.address), 1)
+            await expect(orderBook.executeDecreaseOrder(order.account, orderIndex, user1.address, oracle.address), 1)
                 .to.be.revertedWith("OrderBook: invalid price for execution");
+            await oracle.clearAllPrices();
 
+            let minPrice
+            let maxPrice
+            //console.log("go here1")
             if (setPriceTwice) {
+                //console.log("go here2")
+
+                if (newBtcPrice < BTC_PRICE) {
+                    minPrice = newBtcPrice
+                    maxPrice = BTC_PRICE
+                } else {
+                    minPrice = BTC_PRICE
+                    maxPrice = newBtcPrice
+                }
+                minPrices = [Math.trunc(1 *10**4), Math.trunc(minPrice *10**4)];
+                maxPrices = [Math.trunc(1 *10**4), Math.trunc(maxPrice *10**4)];
+                oracleParam = await prepareOracleParam(feedTokens, precisions, minPrices, maxPrices, priceFeedTokens, await getOracleBlock(provider))
+                expect(oracleParam).to.not.be.null;
+                await oracle.setPrices(oracleParam)
+
                 // on first price update all limit orders are still invalid
                 btcPriceFeed.setLatestAnswer(toChainlinkPrice(newBtcPrice));
-                await expect(orderBook.executeDecreaseOrder(order.account, orderIndex, user1.address), 2)
+                await expect(orderBook.executeDecreaseOrder(order.account, orderIndex, user1.address, oracle.address), 2)
                     .to.be.revertedWith("OrderBook: invalid price for execution");
+                await oracle.clearAllPrices();
             }
 
+            //console.log("go here3")
             // now both min and max prices satisfies requirement
             btcPriceFeed.setLatestAnswer(toChainlinkPrice(newBtcPrice));
-            await expect(orderBook.executeDecreaseOrder(order.account, orderIndex, user1.address), 3)
+
+            if (setPriceTwice) {
+                minPrice = newBtcPrice
+                maxPrice = newBtcPrice
+            } else {
+                if (newBtcPrice < BTC_PRICE) {
+                    minPrice = newBtcPrice
+                    maxPrice = BTC_PRICE
+                } else {
+                    minPrice = BTC_PRICE
+                    maxPrice = newBtcPrice
+                }
+            }
+
+            minPrices = [Math.trunc(1 * 10 ** 4), Math.trunc(minPrice * 10 ** 4)];
+            maxPrices = [Math.trunc(1 * 10 ** 4), Math.trunc(maxPrice * 10 ** 4)];
+            oracleParam = await prepareOracleParam(feedTokens, precisions, minPrices, maxPrices, priceFeedTokens, await getOracleBlock(provider))
+            expect(oracleParam).to.not.be.null;
+            await oracle.setPrices(oracleParam)
+
+            await expect(orderBook.executeDecreaseOrder(order.account, orderIndex, user1.address, oracle.address), 3)
                 .to.not.be.revertedWith("OrderBook: invalid price for execution");
             // so we are sure we passed price validations inside OrderBook
+            await oracle.clearAllPrices();
 
             orderIndex++;
         }
@@ -306,7 +393,7 @@ describe("OrderBook, decrease position orders", () => {
             triggerAboveThreshold: false
         });
 
-        await expect(orderBook.executeDecreaseOrder(defaults.user.address, 1, user1.address))
+        await expect(orderBook.executeDecreaseOrder(defaults.user.address, 1, user1.address, oracle.address))
             .to.be.revertedWith("OrderBook: non-existent order");
     });
 
@@ -329,9 +416,19 @@ describe("OrderBook, decrease position orders", () => {
 
         await btcPriceFeed.setLatestAnswer(toChainlinkPrice(BTC_PRICE + 5050));
 
+        let feedTokens = [dai.address, btc.address];
+        let precisions = [26, 26];
+        let minPrices = [Math.trunc(1 *10**4), Math.trunc((BTC_PRICE + 5050) *10**4)];
+        let maxPrices = [Math.trunc(1 *10**4), Math.trunc((BTC_PRICE + 5050) *10**4)];
+        let priceFeedTokens = [];
+        let oracleParam = await prepareOracleParam(feedTokens, precisions, minPrices, maxPrices, priceFeedTokens, await getOracleBlock(provider))
+        expect(oracleParam).to.not.be.null;
+        await oracle.setPrices(oracleParam)
+
         const executorBalanceBefore = await user1.getBalance();
-        const tx = await orderBook.executeDecreaseOrder(defaults.user.address, 0, user1.address);
+        const tx = await orderBook.executeDecreaseOrder(defaults.user.address, 0, user1.address, oracle.address);
         reportGasUsed(provider, tx, 'executeDecreaseOrder gas used');
+        await oracle.clearAllPrices();
 
         const executorBalanceAfter = await user1.getBalance();
         expect(executorBalanceAfter).to.be.equal(executorBalanceBefore.add(defaults.executionFee));
@@ -371,8 +468,18 @@ describe("OrderBook, decrease position orders", () => {
 
         const executorBalanceBefore = await executor.getBalance();
 
-        const tx = await orderBook.executeDecreaseOrder(defaults.user.address, 0, executor.address);
+        let feedTokens = [dai.address, btc.address];
+        let precisions = [26, 26];
+        let minPrices = [Math.trunc(1 *10**4), Math.trunc((BTC_PRICE - 1500) *10**4)];
+        let maxPrices = [Math.trunc(1 *10**4), Math.trunc((BTC_PRICE - 1500) *10**4)];
+        let priceFeedTokens = [];
+        let oracleParam = await prepareOracleParam(feedTokens, precisions, minPrices, maxPrices, priceFeedTokens, await getOracleBlock(provider))
+        expect(oracleParam).to.not.be.null;
+        await oracle.setPrices(oracleParam)
+
+        const tx = await orderBook.executeDecreaseOrder(defaults.user.address, 0, executor.address, oracle.address);
         reportGasUsed(provider, tx, 'executeDecreaseOrder gas used');
+        await oracle.clearAllPrices();
 
         const executorBalanceAfter = await executor.getBalance();
         expect(executorBalanceAfter).to.be.equal(executorBalanceBefore.add(defaults.executionFee));
@@ -416,14 +523,26 @@ describe("OrderBook, decrease position orders", () => {
         const userTxFee = await getTxFees(provider, userTx);
         const order = await orderBook.decreaseOrders(defaults.user.address, 0);
 
+        //??
         await btcPriceFeed.setLatestAnswer(toChainlinkPrice(BTC_PRICE - 1500));
 
         const executor = user1;
 
+        await mineBlock(provider)
+        let feedTokens = [dai.address, bnb.address];
+        let precisions = [26, 26];
+        let minPrices = [Math.trunc(1 *10**4), Math.trunc(BNB_PRICE *10**4)];
+        let maxPrices = [Math.trunc(1 *10**4), Math.trunc(BNB_PRICE *10**4)];
+        let priceFeedTokens = [];
+        let oracleParam = await prepareOracleParam(feedTokens, precisions, minPrices, maxPrices, priceFeedTokens, await getOracleBlock(provider))
+        expect(oracleParam).to.not.be.null;
+        await oracle.setPrices(oracleParam)
+
         const balanceBefore = await defaults.user.getBalance();
         const executorBalanceBefore = await executor.getBalance();
-        const tx = await orderBook.executeDecreaseOrder(defaults.user.address, 0, executor.address);
+        const tx = await orderBook.executeDecreaseOrder(defaults.user.address, 0, executor.address, oracle.address);
         reportGasUsed(provider, tx, 'executeDecreaseOrder gas used');
+        await oracle.clearAllPrices();
 
         const executorBalanceAfter = await executor.getBalance();
         expect(executorBalanceAfter).to.be.equal(executorBalanceBefore.add(defaults.executionFee));

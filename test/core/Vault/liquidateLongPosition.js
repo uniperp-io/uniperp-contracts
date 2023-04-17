@@ -12,6 +12,7 @@ describe("Vault.liquidateLongPosition", function () {
   const provider = waffle.provider
   const [wallet, user0, user1, user2, user3] = provider.getWallets()
   let vault
+  let vaultUtils
   let vaultPriceFeed
   let usdg
   let router
@@ -28,8 +29,8 @@ describe("Vault.liquidateLongPosition", function () {
   let distributor0
   let yieldTracker0
 
-  let glpManager
-  let glp
+  let ulpManager
+  let ulp
 
   beforeEach(async () => {
     bnb = await deployContract("Token", [])
@@ -52,7 +53,9 @@ describe("Vault.liquidateLongPosition", function () {
     router = await deployContract("Router", [vault.address, usdg.address, bnb.address])
     vaultPriceFeed = await deployContract("VaultPriceFeed", [])
 
-    await initVault(vault, router, usdg, vaultPriceFeed)
+    const xxRes = await initVault(vault, router, usdg, vaultPriceFeed)
+    vault = xxRes.vault
+    vaultUtils = xxRes.vaultUtils
 
     distributor0 = await deployContract("TimeDistributor", [])
     yieldTracker0 = await deployContract("YieldTracker", [usdg.address])
@@ -67,8 +70,13 @@ describe("Vault.liquidateLongPosition", function () {
     await vaultPriceFeed.setTokenConfig(btc.address, btcPriceFeed.address, 8, false)
     await vaultPriceFeed.setTokenConfig(dai.address, daiPriceFeed.address, 8, false)
 
-    glp = await deployContract("GLP", [])
-    glpManager = await deployContract("GlpManager", [vault.address, usdg.address, glp.address, ethers.constants.AddressZero, 24 * 60 * 60])
+    await vault.setSyntheticStableToken(dai.address)
+    await vaultUtils.setIsTradable(bnb.address, true)
+    await vaultUtils.setIsTradable(btc.address, true)
+    await vaultUtils.setIsTradable(dai.address, true)
+
+    ulp = await deployContract("ULP", [])
+    ulpManager = await deployContract("UlpManager", [vault.address, usdg.address, ulp.address, ethers.constants.AddressZero, 24 * 60 * 60])
   })
 
   it("liquidate long", async () => {
@@ -91,13 +99,13 @@ describe("Vault.liquidateLongPosition", function () {
     await btc.mint(user0.address, expandDecimals(1, 8))
     await btc.connect(user1).transfer(vault.address, 25000) // 0.00025 BTC => 10 USD
 
-    expect(await glpManager.getAumInUsdg(false)).eq("99700000000000000000") // 99.7
-    expect(await glpManager.getAumInUsdg(true)).eq("102192500000000000000") // 102.1925
+    expect(await ulpManager.getAumInUsdg(false)).eq("99700000000000000000") // 99.7
+    expect(await ulpManager.getAumInUsdg(true)).eq("102192500000000000000") // 102.1925
 
     await vault.connect(user0).increasePosition(user0.address, btc.address, btc.address, toUsd(90), true)
 
-    expect(await glpManager.getAumInUsdg(false)).eq("99702400000000000000") // 99.7024
-    expect(await glpManager.getAumInUsdg(true)).eq("100192710000000000000") // 100.19271
+    expect(await ulpManager.getAumInUsdg(false)).eq("99702400000000000000") // 99.7024
+    expect(await ulpManager.getAumInUsdg(true)).eq("100192710000000000000") // 100.19271
 
     let position = await vault.getPosition(user0.address, btc.address, btc.address, true)
     expect(position[0]).eq(toUsd(90)) // size
@@ -156,14 +164,14 @@ describe("Vault.liquidateLongPosition", function () {
     await vault.setLiquidator(user1.address, true)
     expect(await vault.isLiquidator(user1.address)).eq(true)
 
-    expect(await glpManager.getAumInUsdg(false)).eq("99064997000000000000") // 99.064997
-    expect(await glpManager.getAumInUsdg(true)).eq("101418485000000000000") // 101.418485
+    expect(await ulpManager.getAumInUsdg(false)).eq("99064997000000000000") // 99.064997
+    expect(await ulpManager.getAumInUsdg(true)).eq("101418485000000000000") // 101.418485
 
     const tx = await vault.connect(user1).liquidatePosition(user0.address, btc.address, btc.address, true, user2.address)
     await reportGasUsed(provider, tx, "liquidatePosition gas used")
 
-    expect(await glpManager.getAumInUsdg(false)).eq("101522097000000000000") // 101.522097
-    expect(await glpManager.getAumInUsdg(true)).eq("114113985000000000000") // 114.113985
+    expect(await ulpManager.getAumInUsdg(false)).eq("101522097000000000000") // 101.522097
+    expect(await ulpManager.getAumInUsdg(true)).eq("114113985000000000000") // 114.113985
 
     position = await vault.getPosition(user0.address, btc.address, btc.address, true)
     expect(position[0]).eq(0) // size
@@ -296,7 +304,11 @@ describe("Vault.liquidateLongPosition", function () {
     await vault.buyUSDG(btc.address, user1.address)
   })
 
+  //TODO
+  /*
+  //AMM price has been given up, so skip this test
   it("excludes AMM price", async () => {
+    await vaultPriceFeed.setIsAmmEnabled(false)
     await bnbPriceFeed.setLatestAnswer(toChainlinkPrice(600))
     await busdPriceFeed.setLatestAnswer(toChainlinkPrice(1))
 
@@ -386,5 +398,5 @@ describe("Vault.liquidateLongPosition", function () {
     expect(await vault.guaranteedUsd(btc.address)).eq(0)
     expect(await vault.poolAmounts(btc.address)).eq(262756 - 219 - 206)
     expect(await btc.balanceOf(user2.address)).eq(11494) // 0.00011494 * 43500 => ~5
-  })
+  })*/
 })

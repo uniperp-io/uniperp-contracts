@@ -4,15 +4,15 @@ const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch
 const { ArgumentParser } = require('argparse');
 const ethers = require('ethers')
 
-const ARBITRUM_SUBGRAPH_ENDPOINT = 'https://api.thegraph.com/subgraphs/name/gmx-io/gmx-arbitrum-referrals'
-const AVALANCHE_SUBGRAPH_ENDPOINT = 'https://api.thegraph.com/subgraphs/name/gmx-io/gmx-avalanche-referrals'
+const ARBITRUM_SUBGRAPH_ENDPOINT = 'https://api.thegraph.com/subgraphs/name/unip-io/unip-arbitrum-referrals'
+const AVALANCHE_SUBGRAPH_ENDPOINT = 'https://api.thegraph.com/subgraphs/name/unip-io/unip-avalanche-referrals'
 
 const BigNumber = ethers.BigNumber
 const { formatUnits, parseUnits } = ethers.utils
 const SHARE_DIVISOR = BigNumber.from("1000000000") // 1e9
-const BONUS_TIER = 2 // for EsGMX distributions
+const BONUS_TIER = 2 // for EsUNIP distributions
 const USD_DECIMALS = 30
-const GMX_DECIMALS = 18
+const UNIP_DECIMALS = 18
 
 function stringToFixed(s, n) {
   return Number(s).toFixed(n)
@@ -69,12 +69,12 @@ async function getReferrersTiers(network) {
   }, {})
 }
 
-async function queryDistributionData(network, fromTimestamp, toTimestamp, account, gmxPrice, esgmxRewards) {
-  if (gmxPrice) {
-    gmxPrice = parseUnits(gmxPrice, USD_DECIMALS)
+async function queryDistributionData(network, fromTimestamp, toTimestamp, account, unipPrice, esunipRewards) {
+  if (unipPrice) {
+    unipPrice = parseUnits(unipPrice, USD_DECIMALS)
   }
-  if (esgmxRewards) {
-    esgmxRewards = parseUnits(esgmxRewards, GMX_DECIMALS)
+  if (esunipRewards) {
+    esunipRewards = parseUnits(esunipRewards, UNIP_DECIMALS)
   }
   let referrerCondition = ""
   let referralCondition = ""
@@ -200,30 +200,30 @@ async function queryDistributionData(network, fromTimestamp, toTimestamp, accoun
     data.allReferrersRebateUsd = allReferrersRebateUsd
     data.account = account
     data.share = data.rebateUsd.mul(SHARE_DIVISOR).div(allReferrersRebateUsd)
-    data.esgmxUsd
+    data.esunipUsd
   })
-  if (gmxPrice && esgmxRewards) {
-    const esgmxRewardsUsdLimit = esgmxRewards.mul(gmxPrice).div(expandDecimals(1, GMX_DECIMALS))
-    let esgmxRewardsUsdTotal = BigNumber.from(0)
+  if (unipPrice && esunipRewards) {
+    const esunipRewardsUsdLimit = esunipRewards.mul(unipPrice).div(expandDecimals(1, UNIP_DECIMALS))
+    let esunipRewardsUsdTotal = BigNumber.from(0)
     Object.values(referrersRebatesData).forEach(data => {
       if (data.tierId !== BONUS_TIER) {
         return
       }
-      data.esgmxRewardsUsd = data.volume.div(1000).div(20) // 0.1% margin fee, 0.05% of fee is EsGMX bonus rewards
-      data.esgmxRewards = data.esgmxRewardsUsd
+      data.esunipRewardsUsd = data.volume.div(1000).div(20) // 0.1% margin fee, 0.05% of fee is EsUNIP bonus rewards
+      data.esunipRewards = data.esunipRewardsUsd
         .mul(expandDecimals(1, USD_DECIMALS))
-        .div(gmxPrice)
+        .div(unipPrice)
         .div(expandDecimals(1, 12))
-      esgmxRewardsUsdTotal = esgmxRewardsUsdTotal.add(data.esgmxRewardsUsd)
+      esunipRewardsUsdTotal = esunipRewardsUsdTotal.add(data.esunipRewardsUsd)
     })
 
-    if (esgmxRewardsUsdTotal.gt(esgmxRewardsUsdLimit)) {
-      const denominator = esgmxRewardsUsdTotal.mul(USD_DECIMALS).div(esgmxRewardsUsdLimit)
+    if (esunipRewardsUsdTotal.gt(esunipRewardsUsdLimit)) {
+      const denominator = esunipRewardsUsdTotal.mul(USD_DECIMALS).div(esunipRewardsUsdLimit)
       Object.values(referrersRebatesData).forEach(data => {
-        data.esgmxRewardsUsd = data.esgmxRewardsUsd.mul(USD_DECIMALS).div(denominator)
-        data.esgmxRewards = data.esgmxRewardsUsd
+        data.esunipRewardsUsd = data.esunipRewardsUsd.mul(USD_DECIMALS).div(denominator)
+        data.esunipRewards = data.esunipRewardsUsd
           .mul(expandDecimals(1, USD_DECIMALS))
-          .div(gmxPrice)
+          .div(unipPrice)
           .div(expandDecimals(1, 12))
       })
     }
@@ -238,8 +238,8 @@ async function queryDistributionData(network, fromTimestamp, toTimestamp, accoun
     shareDivisor: SHARE_DIVISOR.toString(),
     referrers: [],
     referrals: [],
-    gmxPrice,
-    esgmxRewards
+    unipPrice,
+    esunipRewards
   }
   console.log("\nTotal referral volume: %s ($%s)",
     totalReferralVolume.toString(),
@@ -271,8 +271,8 @@ async function queryDistributionData(network, fromTimestamp, toTimestamp, accoun
       "rebateUsd, $": stringToFixed(formatUnits(data.rebateUsd, USD_DECIMALS), 4),
       trades: data.tradesCount,
       tierId: data.tierId,
-      "esgmxRewards, $": data.esgmxRewardsUsd ? formatUnits(data.esgmxRewardsUsd, USD_DECIMALS) : null,
-      esgmxRewards: data.esgmxRewards ? formatUnits(data.esgmxRewards, GMX_DECIMALS) : null,
+      "esunipRewards, $": data.esunipRewardsUsd ? formatUnits(data.esunipRewardsUsd, USD_DECIMALS) : null,
+      esunipRewards: data.esunipRewards ? formatUnits(data.esunipRewards, UNIP_DECIMALS) : null,
     })
     output.referrers.push({
       account: data.account,
@@ -282,8 +282,8 @@ async function queryDistributionData(network, fromTimestamp, toTimestamp, accoun
       rebateUsd: data.rebateUsd.toString(),
       totalRebateUsd: data.totalRebateUsd.toString(),
       tierId: data.tierId,
-      esgmxRewards: data.esgmxRewards ? data.esgmxRewards.toString() : null,
-      esgmxRewardsUsd: data.esgmxRewardsUsd ? data.esgmxRewardsUsd.toString() : null,
+      esunipRewards: data.esunipRewards ? data.esunipRewards.toString() : null,
+      esunipRewardsUsd: data.esunipRewardsUsd ? data.esunipRewardsUsd.toString() : null,
     })
   }
   console.table(consoleData)
@@ -353,9 +353,9 @@ async function main() {
     default: "2022-04-27"
   });
   parser.add_argument('-a', '--account', { help: 'Account address' })
-  parser.add_argument('-g', '--gmx-price', { help: 'GMX TWAP price' })
-  parser.add_argument('-e', '--esgmx-rewards', {
-    help: 'Amount of EsGMX to distribute to Tier 3',
+  parser.add_argument('-g', '--unip-price', { help: 'UNIP TWAP price' })
+  parser.add_argument('-e', '--esunip-rewards', {
+    help: 'Amount of EsUNIP to distribute to Tier 3',
     default: "5000"
   })
 
@@ -379,8 +379,8 @@ async function main() {
     fromTimestamp,
     toTimestamp,
     args.account,
-    args.gmx_price,
-    args.esgmx_rewards
+    args.unip_price,
+    args.esunip_rewards
   )
 }
 

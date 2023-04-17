@@ -185,7 +185,7 @@ contract PositionRouter is BasePositionManager, IPositionRouter {
         address _shortsTracker,
         uint256 _depositFee,
         uint256 _minExecutionFee
-    ) public BasePositionManager(_vault, _router, _shortsTracker, _weth, _depositFee) {
+    ) BasePositionManager(_vault, _router, _shortsTracker, _weth, _depositFee) {
         minExecutionFee = _minExecutionFee;
     }
 
@@ -242,6 +242,11 @@ contract PositionRouter is BasePositionManager, IPositionRouter {
             // an error could be thrown if the request is too old or if the slippage is
             // higher than what the user specified, or if there is insufficient liquidity for the position
             // in case an error was thrown, cancel the request
+            /*
+            bool _wasExecuted = this.executeIncreasePosition(key, _executionFeeReceiver);
+            if (!_wasExecuted) {
+                revert("executeIncreasePosition failed!!");
+            }*/
             try this.executeIncreasePosition(key, _executionFeeReceiver) returns (bool _wasExecuted) {
                 if (!_wasExecuted) { break; }
             } catch {
@@ -276,6 +281,11 @@ contract PositionRouter is BasePositionManager, IPositionRouter {
             // minimum number of blocks has not yet passed
             // an error could be thrown if the request is too old
             // in case an error was thrown, cancel the request
+            /*
+            bool _wasExecuted = this.executeDecreasePosition(key, _executionFeeReceiver);
+            if (!_wasExecuted) {
+                revert("executeDecreasePosition failed!!");
+            }*/
             try this.executeDecreasePosition(key, _executionFeeReceiver) returns (bool _wasExecuted) {
                 if (!_wasExecuted) { break; }
             } catch {
@@ -779,7 +789,7 @@ contract PositionRouter is BasePositionManager, IPositionRouter {
         }
 
         bool success;
-        try IPositionRouterCallbackReceiver(_callbackTarget).gmxPositionCallback{ gas: _gasLimit }(_key, _wasExecuted, _isIncrease) {
+        try IPositionRouterCallbackReceiver(_callbackTarget).unipPositionCallback{ gas: _gasLimit }(_key, _wasExecuted, _isIncrease) {
             success = true;
         } catch {}
 
