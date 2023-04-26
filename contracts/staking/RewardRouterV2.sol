@@ -39,6 +39,7 @@ contract RewardRouterV2 is IRewardRouterV2, ReentrancyGuard, Governable {
     address public override feeUlpTracker;
 
     address public ulpManager;
+    bool public isSellable;
 
     address public unipVester;
     address public ulpVester;
@@ -92,6 +93,10 @@ contract RewardRouterV2 is IRewardRouterV2, ReentrancyGuard, Governable {
 
         unipVester = _unipVester;
         ulpVester = _ulpVester;
+    }
+
+    function setIsSellable(bool _isSellable) external onlyGov {
+        isSellable = _isSellable;
     }
 
     // to help users who accidentally send their tokens to this contract
@@ -158,6 +163,7 @@ contract RewardRouterV2 is IRewardRouterV2, ReentrancyGuard, Governable {
 
     function unstakeAndRedeemUlp(address _tokenOut, uint256 _ulpAmount, uint256 _minOut, address _receiver) external nonReentrant returns (uint256) {
         require(_ulpAmount > 0, "RewardRouter: invalid _ulpAmount");
+        if (!isSellable) { revert("RewardRouter: only after super ulp phase can sell"); }
 
         address account = msg.sender;
         IRewardTracker(stakedUlpTracker).unstakeForAccount(account, feeUlpTracker, _ulpAmount, account);
@@ -171,6 +177,7 @@ contract RewardRouterV2 is IRewardRouterV2, ReentrancyGuard, Governable {
 
     function unstakeAndRedeemUlpETH(uint256 _ulpAmount, uint256 _minOut, address payable _receiver) external nonReentrant returns (uint256) {
         require(_ulpAmount > 0, "RewardRouter: invalid _ulpAmount");
+        if (!isSellable) { revert("RewardRouter: only after super ulp phase can sell"); }
 
         address account = msg.sender;
         IRewardTracker(stakedUlpTracker).unstakeForAccount(account, feeUlpTracker, _ulpAmount, account);

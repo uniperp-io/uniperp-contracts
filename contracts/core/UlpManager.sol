@@ -36,6 +36,7 @@ contract UlpManager is ReentrancyGuard, Governable, IUlpManager {
     uint256 public aumDeduction;
 
     bool public inPrivateMode;
+
     uint256 public shortsTrackerAveragePriceWeight;
     mapping (address => bool) public isHandler;
 
